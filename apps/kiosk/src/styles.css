@@ -1,0 +1,211 @@
+:root {
+  --ink: #1b2447;
+  --purple: #5a4fcf;
+  --orange: #f47b20;
+  --warn: #e2521c;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  /* Matches the white studio backdrop the client presents the character on. */
+  background: radial-gradient(circle at 50% 38%, #ffffff 0%, #eef0f7 62%, #dfe3ef 100%);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--ink);
+  /* A kiosk should not offer text selection, long-press menus, or pinch zoom. */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  cursor: none;
+}
+
+.app {
+  position: relative;
+  height: 100%;
+}
+
+canvas {
+  display: block;
+}
+
+/* --- push to talk --------------------------------------------------------- */
+
+.controls {
+  position: absolute;
+  inset: auto 0 6vh 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ptt {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.1rem 2.4rem;
+  font-size: clamp(1rem, 2.2vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+  background: var(--purple);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  box-shadow: 0 10px 28px rgba(38, 30, 110, 0.22);
+  transition: transform 120ms ease, background 200ms ease, box-shadow 200ms ease;
+  cursor: none;
+}
+
+.ptt--held,
+.ptt--listening {
+  transform: scale(0.97);
+  background: var(--orange);
+  box-shadow: 0 6px 18px rgba(200, 90, 20, 0.3);
+}
+
+.ptt:disabled {
+  opacity: 0.45;
+}
+
+.ptt__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0.9;
+}
+
+.ptt--listening .ptt__dot {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.ptt--thinking .ptt__dot {
+  animation: pulse 0.45s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+}
+
+/* --- captions ------------------------------------------------------------- */
+
+.captions {
+  position: absolute;
+  inset: auto 0 18vh 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 8vw;
+  text-align: center;
+  pointer-events: none;
+}
+
+.captions__user {
+  margin: 0;
+  font-size: clamp(0.9rem, 1.6vw, 1.15rem);
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.captions__agent {
+  margin: 0;
+  font-size: clamp(1.1rem, 2.4vw, 1.75rem);
+  font-weight: 500;
+  line-height: 1.35;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+/* --- attract loop --------------------------------------------------------- */
+
+.attract {
+  position: absolute;
+  inset: 8vh 0 auto 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.attract__prompt {
+  padding: 0.6rem 1.4rem;
+  font-size: clamp(0.95rem, 1.9vw, 1.25rem);
+  font-weight: 500;
+  color: var(--ink);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(90, 79, 207, 0.22);
+  animation: fade 4.5s ease-in-out infinite;
+}
+
+@keyframes fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 0.85;
+  }
+}
+
+/* --- status + debug ------------------------------------------------------- */
+
+.banner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.35rem 1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--warn);
+  color: #1a0b06;
+  border-radius: 0 0 8px 8px;
+}
+
+.hud {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  min-width: 15rem;
+  padding: 0.75rem 0.9rem;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: #e8ecf8;
+  background: rgba(20, 26, 48, 0.88);
+  border-radius: 10px;
+}
+
+.hud hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  margin: 0.5rem 0;
+}
+
+.hud__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.hud__row span {
+  opacity: 0.55;
+}
+
+.hud__row--warn strong {
+  color: var(--warn);
+}

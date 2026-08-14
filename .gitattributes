@@ -1,0 +1,12 @@
+# Normalize to LF in the repository. The kiosk is developed on Windows but
+# builds on Linux in CI and on Vercel, and mixed endings turn every diff into
+# a whole-file rewrite.
+* text=auto eol=lf
+
+# Binary drops that do reach the repo (most are gitignored) must not be touched.
+*.glb binary
+*.png binary
+*.jpg binary
+*.mp3 binary
+*.task binary
+*.tflite binary

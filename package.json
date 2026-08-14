@@ -1,0 +1,34 @@
+{
+  "name": "enubot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Interactive character robot kiosk — 3D rigged body, 2D animated face, real-time voice.",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @enubot/kiosk",
+    "dev:proxy": "npm run dev --workspace @enubot/proxy",
+    "start": "node scripts/start-all.mjs",
+    "build": "npm run build --workspace @enubot/kiosk",
+    "test": "npm run test --workspace @enubot/kiosk",
+    "typecheck": "npm run typecheck --workspace @enubot/kiosk",
+    "vision:assets": "node scripts/fetch-vision-assets.mjs",
+    "validate:glb": "node scripts/validate-glb.mjs",
+    "check:cache": "node scripts/check-cache.mjs",
+    "bake:gestures": "node scripts/bake-gestures.mjs",
+    "eval:persona": "node scripts/eval-persona.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.4.2",
+    "@gltf-transform/core": "^4.4.2",
+    "@gltf-transform/extensions": "^4.4.2",
+    "@gltf-transform/functions": "^4.4.2",
+    "draco3dgltf": "^1.5.7",
+    "sharp": "^0.35.3"
+  }
+}

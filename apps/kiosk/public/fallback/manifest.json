@@ -1,0 +1,177 @@
+{
+  "_comment": "The answer cache's index — what exists, what it says, when it moves, and which key plays it. Generated content, but committed: the MP3s beside it are gitignored binaries, and without this file there is nothing in the repo that records what should be there. The `answer` strings carry inline gesture tags; the MP3s are recordings of those same strings with the tags stripped, so `npm run check:cache` can prove the two still agree. `cues` is those same tags resolved to audio seconds by `npm run bake:gestures`, and is what the app actually plays — the atSeconds values are meant to be corrected by ear, and a hand edit survives a re-bake for as long as `cuesStamp` still matches the answer text and the audio's size. Edit an answer in content/qa.json and this file and its audio must both be re-rendered — see assets/README.md.",
+  "generatedAt": "2026-08-12",
+  "voice": {
+    "vendor": "higgsfield",
+    "model": "seed_audio",
+    "voiceName": "Benji",
+    "voiceId": "e6f9b893-51b1-51d3-afe9-9e0482cb7ac1",
+    "note": "DUMMY AUDIO. A stand-in so the cached path, lip-sync and gestures can be built and reviewed before the real voice is chosen. Re-render the whole bank once that decision lands."
+  },
+  "refusalFallback": {
+    "id": "refusal-fallback",
+    "question": "",
+    "answer": "[shrug] That one's above my pay grade. Ask me about the event and I'm much more use.",
+    "file": "refusal-fallback.mp3",
+    "cues": [
+      {
+        "kind": "gesture",
+        "name": "shrug",
+        "atSeconds": 0
+      }
+    ],
+    "cuesStamp": "84:78620"
+  },
+  "answers": [
+    {
+      "id": "what-are-you",
+      "hotkey": "1",
+      "question": "What are you?",
+      "answer": "[wave] I'm Enubot. I live on this screen, I know a fair bit about this event, and I'm told I have very expressive eyebrows.",
+      "file": "what-are-you.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "wave",
+          "atSeconds": 0
+        }
+      ],
+      "cuesStamp": "123:111639"
+    },
+    {
+      "id": "what-is-the-event",
+      "hotkey": "2",
+      "question": "What is this event?",
+      "answer": "It's the Enu Summit. One day, three stages, and a lot of people building things that move. [point] Everything happens on this floor and the one above.",
+      "file": "what-is-the-event.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "point",
+          "atSeconds": 6.462
+        }
+      ],
+      "cuesStamp": "150:161376"
+    },
+    {
+      "id": "keynote",
+      "hotkey": "3",
+      "question": "Where is the keynote?",
+      "answer": "[point] Main hall, straight past the coffee. It kicks off at ten sharp, so don't linger too long over the pastries.",
+      "file": "keynote.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "point",
+          "atSeconds": 0
+        }
+      ],
+      "cuesStamp": "115:99100"
+    },
+    {
+      "id": "what-to-see",
+      "hotkey": "4",
+      "question": "What should I see first?",
+      "answer": "[think] Three things. The robotics floor at the back, the live demo stage at eleven, and whoever is running the coffee. They're the real keynote.",
+      "file": "what-to-see.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "think",
+          "atSeconds": 0
+        }
+      ],
+      "cuesStamp": "145:197320"
+    },
+    {
+      "id": "who-made-you",
+      "hotkey": "5",
+      "question": "Who built you?",
+      "answer": "[nod] A very patient team at Enu. They taught me roughly ten things and hoped for the best.",
+      "file": "who-made-you.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "nod",
+          "atSeconds": 0
+        }
+      ],
+      "cuesStamp": "91:102026"
+    },
+    {
+      "id": "how-do-you-work",
+      "hotkey": "6",
+      "question": "How do you work?",
+      "answer": "You talk, I listen, and I say the thing I know that fits best. [shrug] There's nobody behind a curtain, I promise.",
+      "file": "how-do-you-work.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "shrug",
+          "atSeconds": 3.897
+        }
+      ],
+      "cuesStamp": "114:104951"
+    },
+    {
+      "id": "wifi",
+      "hotkey": "7",
+      "question": "What's the wifi?",
+      "answer": "The network is Enu Guest, and there's no password. [nod] If it drops, walk ten steps toward the main hall and try again.",
+      "file": "wifi.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "nod",
+          "atSeconds": 3.272
+        }
+      ],
+      "cuesStamp": "120:117072"
+    },
+    {
+      "id": "food",
+      "hotkey": "8",
+      "question": "Where's the coffee?",
+      "answer": "[point] Coffee is by the entrance, all day. Lunch turns up at half twelve on the mezzanine, and it goes fast.",
+      "file": "food.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "point",
+          "atSeconds": 0
+        }
+      ],
+      "cuesStamp": "109:140478"
+    },
+    {
+      "id": "schedule",
+      "hotkey": "9",
+      "question": "What's on later?",
+      "answer": "Live demos at eleven, the panel at two, and drinks from five. [nod] The whole run of it is on the board by the doors.",
+      "file": "schedule.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "nod",
+          "atSeconds": 4.377
+        }
+      ],
+      "cuesStamp": "117:125431"
+    },
+    {
+      "id": "contact",
+      "hotkey": "0",
+      "question": "How do I get in touch?",
+      "answer": "[wave] Ask anyone in a blue lanyard. They know far more than I do. Or there's a sign-up sheet at the front desk.",
+      "file": "contact.mp3",
+      "cues": [
+        {
+          "kind": "gesture",
+          "name": "wave",
+          "atSeconds": 0
+        }
+      ],
+      "cuesStamp": "112:96174"
+    }
+  ]
+}

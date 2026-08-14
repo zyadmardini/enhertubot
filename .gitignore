@@ -1,0 +1,25 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+.vite/
+
+# Large binary assets are delivered out-of-band, not committed.
+assets/*.glb
+apps/kiosk/public/models/*.glb
+apps/kiosk/public/models/*.tflite
+
+# Vision runtime: the wasm is copied out of node_modules and the models are
+# downloaded, both by `npm run vision:assets`. Reproducible from the lockfile
+# plus that script, so committing ~10MB of binaries buys nothing.
+apps/kiosk/public/mediapipe/
+apps/kiosk/public/models/*.task
+
+# Pre-rendered answers, in both the delivery location and the served one. The
+# second line is the one that matters: assets/fallback is where they arrive, but
+# apps/kiosk/public/fallback is where they have to sit to be served, and that is
+# ten binaries walking into the repo the first time somebody renders them.
+assets/fallback/*.mp3
+apps/kiosk/public/fallback/*.mp3
