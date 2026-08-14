@@ -211,6 +211,24 @@ stand-in on placeholder copy for a fictional "Enu Summit", generated so the
 cached path, lip-sync and gestures could be built and reviewed before the voice
 and the client's real answers exist. Re-render the whole bank when either lands.
 
+## Cloud preview (Vercel)
+
+`vercel.json` deploys the kiosk front end only, as a static Vite build. The
+proxy is deliberately not deployed: it holds every vendor key and is designed
+for loopback on the kiosk machine, so putting it behind a public URL is a
+different security posture and a different piece of work.
+
+That means the deployed build is a **shape preview, not a working kiosk**. The
+proxy is unreachable, so the health check fails and the UI drops to canned mode;
+the GLB and the answer MP3s are gitignored, so the scene shows the placeholder
+robot. The build env pins `VITE_ENUBOT_DRIVER=mock` for that reason — `cached`
+without its bank is a silent kiosk, and mock is the driver with no asset
+dependency at all.
+
+What the preview is good for: layout, face rendering, gesture scheduling and
+state-machine behaviour, reviewable from any machine. Voice, vision and the real
+robot stay local.
+
 ## Working on Windows
 
 Keep this repo outside OneDrive. `node_modules` under an OneDrive-synced folder

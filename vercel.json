@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": "apps/kiosk/dist",
+  "framework": "vite",
+  "build": {
+    "env": {
+      "VITE_ENUBOT_DRIVER": "mock"
+    }
+  }
+}
