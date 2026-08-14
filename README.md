@@ -218,16 +218,29 @@ proxy is deliberately not deployed: it holds every vendor key and is designed
 for loopback on the kiosk machine, so putting it behind a public URL is a
 different security posture and a different piece of work.
 
-That means the deployed build is a **shape preview, not a working kiosk**. The
-proxy is unreachable, so the health check fails and the UI drops to canned mode;
-the GLB and the answer MP3s are gitignored, so the scene shows the placeholder
-robot. The build env pins `VITE_ENUBOT_DRIVER=mock` for that reason — `cached`
-without its bank is a silent kiosk, and mock is the driver with no asset
-dependency at all.
+The deploy runs the same three assets the local kiosk does. The GLB and the
+answer bank are committed (see `.gitignore` for why those two and nothing else),
+and `npm run vision:assets` runs as part of the build, so the MediaPipe wasm and
+models are in `dist/` without ever entering git. The build env therefore pins the
+real configuration — `VITE_ENUBOT_DRIVER=cached`, `VITE_ENUBOT_VISION=mediapipe`
+— not a degraded one.
 
-What the preview is good for: layout, face rendering, gesture scheduling and
-state-machine behaviour, reviewable from any machine. Voice, vision and the real
-robot stay local.
+`api/health.js` is the only server-side code deployed, and it holds no key. That
+is not a compromise: `EnubotRuntime.#checkHealth` is the *only* proxy call the
+client makes. Both live-voice drivers still throw on `connect()`, so /chat,
+/tts-sample and /session have no caller — deploying them would put an
+unauthenticated Anthropic relay on a public URL to serve zero traffic. They go up
+when a driver needs them.
+
+So the cloud build is as capable as the local one, because live voice is not
+built anywhere yet. What runs: the real robot, the real answer bank with
+lip-sync, camera presence, gaze and wave detection. What does not: STT, the LLM
+turn, and streaming TTS — none of which exist locally either.
+
+One difference worth knowing. The camera is the reason the venue build stays on
+loopback: `localhost` is a secure context, so `getUserMedia` needs no
+certificate. Vercel serves HTTPS, so the camera works there too — but it is a
+public origin, and the browser will prompt every visitor.
 
 ## Working on Windows
 
