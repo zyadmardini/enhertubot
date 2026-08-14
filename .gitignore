@@ -5,21 +5,35 @@ dist/
 *.log
 .DS_Store
 .vite/
+.vercel/
 
-# Large binary assets are delivered out-of-band, not committed.
+# Source-of-truth drops. These are the raw deliveries — the multi-hundred-MB
+# sculpts and the un-optimised exports — and they stay out.
 assets/*.glb
-apps/kiosk/public/models/*.glb
 apps/kiosk/public/models/*.tflite
 
 # Vision runtime: the wasm is copied out of node_modules and the models are
 # downloaded, both by `npm run vision:assets`. Reproducible from the lockfile
-# plus that script, so committing ~10MB of binaries buys nothing.
+# plus that script, so committing ~10MB of binaries buys nothing — the Vercel
+# build runs the same script, which is why these can stay ignored and the cloud
+# deploy still sees.
 apps/kiosk/public/mediapipe/
 apps/kiosk/public/models/*.task
 
-# Pre-rendered answers, in both the delivery location and the served one. The
-# second line is the one that matters: assets/fallback is where they arrive, but
-# apps/kiosk/public/fallback is where they have to sit to be served, and that is
-# ten binaries walking into the repo the first time somebody renders them.
+# The raw delivery location for rendered answers stays ignored...
 assets/fallback/*.mp3
-apps/kiosk/public/fallback/*.mp3
+
+# ...but the *served* copies are committed, deliberately.
+#
+# These two exceptions (the optimised GLB, ~1.3MB, and the answer bank, ~1.3MB)
+# reverse the original out-of-band rule for the only two assets the app cannot
+# degrade past. Without them a deploy is a placeholder cube that says nothing,
+# which is not a reviewable kiosk. 2.6MB is not "large binary assets" — the rule
+# was written against the 1.9M-tri sculpt, and it still holds for that.
+#
+# The cost is real and worth naming: the MP3s are dummy audio and will be
+# re-rendered, and each re-render is another 1.3MB of history that never shrinks.
+# If the bank gets re-rendered more than a couple of times, move it to Vercel
+# Blob and delete these lines rather than letting the repo carry every take.
+!apps/kiosk/public/models/enubot.glb
+!apps/kiosk/public/fallback/*.mp3
