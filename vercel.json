@@ -8,7 +8,8 @@
     "env": {
       "VITE_ENUBOT_DRIVER": "cached",
       "VITE_ENUBOT_VISION": "mediapipe",
-      "VITE_ENUBOT_PROXY": "/api"
+      "VITE_ENUBOT_PROXY": "/api",
+      "VITE_ENUBOT_DEBUG_PAGES": "1"
     }
   }
 }

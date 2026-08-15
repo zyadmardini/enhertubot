@@ -33,7 +33,10 @@ import type { CannedAnswer } from './voice/types.ts'
  * they used to have, on the same clip, which is the only honest way to judge
  * whether the aligner was worth it.
  *
- * Not part of the production build: Vite only bundles index.html.
+ * Not in the kiosk build, but in the cloud preview's: a build takes
+ * `index.html` as its only entry unless `VITE_ENUBOT_DEBUG_PAGES=1` adds this
+ * page and the face sheet, which `vercel.json` sets. The dev server serves it
+ * either way. See vite.config.ts.
  */
 
 const SAMPLE_TEXT =
