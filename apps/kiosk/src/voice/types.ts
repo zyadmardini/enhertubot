@@ -40,6 +40,17 @@ export type DriverEvent =
    * is known. Where both are present the phones win — see audio/visemes.ts.
    */
   | { type: 'audio'; buffer: AudioBuffer; alignment?: CharAlignment; phones?: PhoneTrack }
+  /**
+   * How far along this driver is in getting to the point where its first answer
+   * is fast, emitted once per unit of work with `done === total` meaning ready.
+   *
+   * The cached path counts decoded clips, and that count is what the boot screen
+   * holds the kiosk back for: a bank still downloading is the difference between
+   * a press that speaks and a press that waits on a fetch — which is what a
+   * visitor reads as a broken robot. A driver with nothing to warm never emits
+   * it, and connecting is then readiness on its own.
+   */
+  | { type: 'warming'; done: number; total: number }
   | { type: 'error'; message: string; recoverable: boolean }
 
 export interface DriverDeps {

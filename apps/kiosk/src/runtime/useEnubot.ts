@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { EnubotRuntime } from './EnubotRuntime.ts'
+import type { VoiceReadiness } from './EnubotRuntime.ts'
 import type { ConversationState } from '../core/types.ts'
 
 export interface EnubotUiState {
@@ -8,6 +9,8 @@ export interface EnubotUiState {
   latency: { last: number | null; p50: number | null; p95: number | null }
   /** False when the proxy is unreachable — the UI drops to canned mode. */
   healthy: boolean
+  /** How much of the answer cache is decoded. The boot screen waits on it. */
+  voice: VoiceReadiness
 }
 
 /**
@@ -26,6 +29,7 @@ export function useEnubot(): { runtime: EnubotRuntime | null; ui: EnubotUiState 
     captions: { user: '', agent: '' },
     latency: { last: null, p50: null, p95: null },
     healthy: true,
+    voice: { done: 0, total: 0, ready: false },
   })
 
   useEffect(() => {
@@ -38,6 +42,7 @@ export function useEnubot(): { runtime: EnubotRuntime | null; ui: EnubotUiState 
       instance.on('captions', (captions) => setUi((prev) => ({ ...prev, captions }))),
       instance.on('latency', (latency) => setUi((prev) => ({ ...prev, latency }))),
       instance.on('health', (healthy) => setUi((prev) => ({ ...prev, healthy }))),
+      instance.on('voice', (voice) => setUi((prev) => ({ ...prev, voice }))),
     ]
 
     void instance.start()

@@ -1,39 +1,21 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './scene/Scene.tsx'
-import { MODEL_URL } from './scene/model.ts'
 import { PushToTalk } from './ui/PushToTalk.tsx'
 import { Captions } from './ui/Captions.tsx'
 import { DebugHud } from './ui/DebugHud.tsx'
 import { AttractOverlay } from './ui/AttractOverlay.tsx'
+import { BootScreen } from './ui/BootScreen.tsx'
 import { useEnubot } from './runtime/useEnubot.ts'
+import { useBoot } from './boot/useBoot.ts'
 import { DEBUG } from './debug.ts'
 
 export default function App() {
   const { runtime, ui } = useEnubot()
-  const [hasModel, setHasModel] = useState(false)
-
-  // Probe rather than letting the GLTF loader throw: until the rig lands in
-  // Week 1 the placeholder has to carry the scene, and a failed load inside
-  // Suspense is a blank screen, not a graceful fallback.
-  //
-  // `response.ok` alone is not enough. A dev server's SPA fallback answers a
-  // missing asset with index.html and a 200, so the content type is what
-  // actually distinguishes "model is here" from "model is not here".
-  useEffect(() => {
-    let cancelled = false
-    fetch(MODEL_URL, { method: 'HEAD' })
-      .then((response) => {
-        const contentType = response.headers.get('content-type') ?? ''
-        if (!cancelled) setHasModel(response.ok && !contentType.includes('text/html'))
-      })
-      .catch(() => {
-        if (!cancelled) setHasModel(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  // The character rig and the answer cache download together behind the boot
+  // screen. Nothing here probes for the model first — see scene/loadModel.ts for
+  // what that round trip was costing.
+  const boot = useBoot(ui.voice)
 
   // Pre-rendered answers, on staff hotkeys.
   //
@@ -47,7 +29,9 @@ export default function App() {
   // hand here, in step with `content/qa.json` and with nothing enforcing it — so
   // renaming an id pointed a key at a 404 and nothing said so until the booth.
   useEffect(() => {
-    if (!runtime) return
+    // Not before the boot screen has lifted: a hotkey answer playing behind the
+    // overlay is an answer nobody sees the robot give.
+    if (!runtime || !boot.ready) return
     const onKey = (event: KeyboardEvent) => {
       if (event.repeat) return
       // Looked up at press time rather than captured at mount: the bank arrives
@@ -58,7 +42,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [runtime])
+  }, [runtime, boot.ready])
 
   const onDown = useCallback(() => runtime?.pttDown(), [runtime])
   const onUp = useCallback(() => runtime?.pttUp(), [runtime])
@@ -82,15 +66,25 @@ export default function App() {
         // this framing holds on the portrait booth display as well as in landscape.
         camera={{ position: [0, 0.15, 3.4], fov: 36 }}
       >
-        {runtime ? <Scene runtime={runtime} hasModel={hasModel} /> : null}
+        {runtime ? <Scene runtime={runtime} model={boot.model} /> : null}
       </Canvas>
 
       <AttractOverlay state={ui.state} />
       <Captions user={ui.captions.user} agent={ui.captions.agent} />
 
       <div className="controls">
-        <PushToTalk state={ui.state} onDown={onDown} onUp={onUp} disabled={!runtime} />
+        {/* Disabled until the bank is decoded. A press that has to wait for a
+            fetch is the one that reads as a broken robot, and the boot screen is
+            there precisely so that press cannot happen. */}
+        <PushToTalk
+          state={ui.state}
+          onDown={onDown}
+          onUp={onUp}
+          disabled={!runtime || !boot.ready}
+        />
       </div>
+
+      <BootScreen ratio={boot.ratio} label={boot.label} done={boot.ready} />
 
       {!ui.healthy ? (
         <div className="banner" role="status">

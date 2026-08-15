@@ -61,6 +61,12 @@ export function DebugHud({ runtime, ui }: DebugHudProps) {
       <Row label="visitor" value={vision.present ? 'present' : '—'} />
       <Row label="attention" value={vision.attention.toFixed(2)} />
       <Row label="proxy" value={ui.healthy ? 'ok' : 'DOWN — canned mode'} warn={!ui.healthy} />
+      {/* A press before this says ready is a press that waits on a download. */}
+      <Row
+        label="voice cache"
+        value={ui.voice.ready ? 'ready' : `${ui.voice.done}/${ui.voice.total}`}
+        warn={!ui.voice.ready}
+      />
       <Row label="gesture" value={lastGesture} />
       <Row label="greeting" value={lastGreeting} />
       <hr />

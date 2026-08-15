@@ -35,6 +35,22 @@ const MANIFEST_URL = `${FALLBACK_BASE}/manifest.json`
 const TRANSCRIPT_DELAY_MS = 120
 const TEXT_DELAY_MS = 60
 
+/**
+ * How many clips are fetched and decoded at once while warming the bank.
+ *
+ * The bank used to be warmed by firing every fetch on the same tick, which
+ * sounds like the fastest thing to do and is only fastest for the bank. Measured
+ * on a 6Mbps link, eleven parallel MP3 requests take about eleven twelfths of the
+ * pipe and leave the 1.3MB character model the rest: the bank finished at 1.8s
+ * and the robot did not appear until 6.5s. Nothing had gone wrong — the bytes
+ * were simply allocated to the half of the boot nobody was waiting on yet.
+ *
+ * Three at a time keeps the connection busy without starving the model, and
+ * finishes the bank in `qa.json` order, which is the order the press-to-talk
+ * cursor walks it in. Same link, same bytes: bank at 3.8s, robot at 4.6s.
+ */
+const WARM_CONCURRENCY = 3
+
 interface Manifest {
   answers: CannedAnswer[]
   refusalFallback?: CannedAnswer
@@ -68,6 +84,8 @@ export class CachedDriver implements ConversationDriver, CannedAnswerBank {
   #cursor = 0
   /** Bumped on every interrupt so a decode that lands late can't speak. */
   #turn = 0
+  /** Set by disconnect, so a warm in flight stops rather than filling a dead map. */
+  #disposed = false
 
   constructor(deps: DriverDeps) {
     this.#deps = deps
@@ -107,17 +125,51 @@ export class CachedDriver implements ConversationDriver, CannedAnswerBank {
     this.#answers = manifest.answers
     this.#refusal = manifest.refusalFallback ?? null
 
-    // Warm every clip in the background. Awaiting here would put the whole bank's
-    // decode in front of the first frame; leaving it out entirely would put one
-    // fetch in front of the first answer, which is the latency the cache exists
-    // to remove. `#play` awaits whichever decode it needs, in flight or done.
-    for (const answer of [...this.#answers, ...(this.#refusal ? [this.#refusal] : [])]) {
-      void this.#decode(answer).catch((error: unknown) => {
-        console.warn(`[enubot] Pre-rendered answer "${answer.id}" failed to load.`, error)
-      })
-      void this.#loadAlignment(answer)
-      void this.#loadPhones(answer)
+    // Warm the bank in the background. Awaiting it here would put every decode in
+    // front of the first frame; leaving it out would put one fetch in front of
+    // the first answer, which is the latency the cache exists to remove. `#play`
+    // awaits whichever decode it needs, in flight or done.
+    //
+    // The count goes out before connect resolves so the runtime knows a warm is
+    // coming and boot has a total to count against — a driver that emits nothing
+    // here is treated as ready the moment it connects.
+    const queue = [...this.#answers, ...(this.#refusal ? [this.#refusal] : [])]
+    this.#emit({ type: 'warming', done: 0, total: queue.length })
+    void this.#warmBank(queue)
+  }
+
+  /**
+   * Fetch and decode the whole bank, `WARM_CONCURRENCY` clips at a time.
+   *
+   * Every failure is swallowed to a warning: one clip that 404s must not stop the
+   * other ten from warming, and it must not stall boot behind a `done` that never
+   * reaches `total` either. The press for that one answer then fails the way it
+   * always did, with a recoverable error.
+   */
+  async #warmBank(queue: readonly CannedAnswer[]): Promise<void> {
+    let next = 0
+    let done = 0
+
+    const worker = async (): Promise<void> => {
+      while (next < queue.length && !this.#disposed) {
+        const answer = queue[next++]
+        if (!answer) continue
+        // The sidecars ride beside their own clip rather than in a second wave:
+        // all are needed at the same moment, and an alignment that lands after
+        // the audio it describes presses the lips shut a syllable late.
+        await Promise.all([
+          this.#decode(answer).catch((error: unknown) => {
+            console.warn(`[enubot] Pre-rendered answer "${answer.id}" failed to load.`, error)
+          }),
+          this.#loadAlignment(answer),
+          this.#loadPhones(answer),
+        ])
+        done += 1
+        this.#emit({ type: 'warming', done, total: queue.length })
+      }
     }
+
+    await Promise.all(Array.from({ length: Math.min(WARM_CONCURRENCY, queue.length) }, worker))
   }
 
   /**
@@ -190,6 +242,7 @@ export class CachedDriver implements ConversationDriver, CannedAnswerBank {
   }
 
   disconnect(): void {
+    this.#disposed = true
     this.interrupt()
     this.#listeners.clear()
     this.#buffers.clear()

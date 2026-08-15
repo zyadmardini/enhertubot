@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { createPortal, useFrame, useGraph } from '@react-three/fiber'
-import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import config from '../../enubot.config.ts'
 import { FaceSurface } from './FaceSurface.tsx'
@@ -9,10 +8,12 @@ import type { EnubotRuntime } from '../runtime/EnubotRuntime.ts'
 import { GESTURE_CLIPS, STATE_CLIPS } from '../core/types.ts'
 import type { ClipName } from '../core/types.ts'
 import { pick, seededRng } from '../core/random.ts'
-import { MODEL_URL } from './model.ts'
+import type { CharacterModel } from './loadModel.ts'
 
 interface GltfRobotProps {
   runtime: EnubotRuntime
+  /** Already downloaded and parsed by the boot sequence. See loadModel.ts. */
+  model: CharacterModel
   /** Name of the head bone the gaze controller drives. */
   headBoneName?: string
 }
@@ -40,8 +41,8 @@ const STAGE_FLOOR_Y = -0.95
  * `OPTIONAL_CLIPS` land one export at a time: a rig with only the eight required
  * clips animates correctly and simply repeats itself more.
  */
-export function GltfRobot({ runtime, headBoneName = 'Head' }: GltfRobotProps) {
-  const { scene, animations } = useGLTF(MODEL_URL)
+export function GltfRobot({ runtime, model, headBoneName = 'Head' }: GltfRobotProps) {
+  const { scene, animations } = model
   const { nodes } = useGraph(scene)
   const rootRef = useRef<THREE.Group>(null)
 
@@ -283,8 +284,8 @@ export function GltfRobot({ runtime, headBoneName = 'Head' }: GltfRobotProps) {
   )
 }
 
-// Deliberately no useGLTF.preload() at module scope: it fires on import, which
-// would start a fetch for a model that may not exist yet — and a dev server's
-// SPA fallback answers that with HTML, producing an uncaught parse error that
-// blanks the whole app. This module is only imported once the probe in App.tsx
-// confirms the file is there.
+// Deliberately no loading of its own. This component is handed a rig that is
+// already downloaded and parsed, so mounting it costs a scene graph walk and a
+// shader compile and nothing else — no fetch, no suspend, no frame where the
+// placeholder stands in behind a Suspense boundary. The download is boot's job:
+// see scene/loadModel.ts.

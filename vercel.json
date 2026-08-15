@@ -11,5 +11,29 @@
       "VITE_ENUBOT_PROXY": "/api",
       "VITE_ENUBOT_DEBUG_PAGES": "1"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/fallback/manifest.json",
+      "headers": [{ "key": "Cache-Control", "value": "public, no-cache" }]
+    },
+    {
+      "source": "/fallback/((?!manifest\\.json).*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/models/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/mediapipe/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }
+      ]
+    }
+  ]
 }
