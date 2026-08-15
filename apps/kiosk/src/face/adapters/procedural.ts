@@ -6,6 +6,17 @@ export interface ProceduralFaceOptions {
   size: number
   blinkIntervalRange: [number, number]
   doubleBlinkChance: number
+  /**
+   * Time constant for the blend between mouth shapes, seconds.
+   *
+   * A ceiling on how crisp articulation can be, and worth knowing about: a shape
+   * that is only shown for 40ms never fully arrives if the blend takes 40ms to
+   * get there. It is deliberately slow when the source is guessing, because the
+   * frame or two where a classifier changes its mind is hidden by exactly this
+   * lag — and deliberately tunable now that a source exists which is not
+   * guessing. See audio/visemes.ts.
+   */
+  shapeBlendSeconds: number
 }
 
 interface ExpressionPose {
@@ -265,8 +276,9 @@ export class ProceduralFace implements FaceRenderer {
 
     // Shape blends a touch slower than aperture. The envelope is a real signal and
     // should arrive on time; the viseme is a classification, and letting it slide
-    // in over ~40ms hides the frame or two where the classifier changes its mind.
-    const shapeBlend = 1 - Math.exp(-dt / 0.04)
+    // in hides the frame or two where the classifier changes its mind — at the
+    // cost of blunting the shapes that were right. See `shapeBlendSeconds`.
+    const shapeBlend = 1 - Math.exp(-dt / this.#opts.shapeBlendSeconds)
     const target = MOUTH_SHAPES[this.#viseme]
     const shape = this.#shape
     for (const key of Object.keys(shape) as Array<keyof MouthShape>) {

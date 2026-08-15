@@ -323,6 +323,7 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
         // The next utterance restarts the playback clock at zero, so spans left
         // over from this one would land on unrelated syllables.
         this.#lipSync.alignment.clear()
+        this.#lipSync.visemes.clear()
       }),
 
       this.#driver.on((event) => {
@@ -368,6 +369,7 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
             // is describing.
             const offsetSeconds = this.bus.enqueue(event.buffer)
             if (event.alignment) this.#lipSync.alignment.append(event.alignment, offsetSeconds)
+            if (event.phones) this.#lipSync.visemes.append(event.phones, offsetSeconds)
             // Re-time the queue against real duration; the char-rate estimate can
             // be a few hundred ms out on a long answer.
             const duration = this.bus.durationSeconds
@@ -410,6 +412,7 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
     this.bus.stop()
     this.#scheduler.flush()
     this.#lipSync.alignment.clear()
+    this.#lipSync.visemes.clear()
     this.#driver.interrupt()
     this.machine.send({ type: 'interrupt' })
     this.#turnHasAudio = false

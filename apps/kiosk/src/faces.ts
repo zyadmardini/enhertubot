@@ -142,6 +142,7 @@ function mount(cell: Cell, into: HTMLElement, word?: string): Live {
     size: config.face_.canvasSize,
     blinkIntervalRange: config.face_.blinkIntervalRange,
     doubleBlinkChance: config.face_.doubleBlinkChance,
+    shapeBlendSeconds: config.face_.shapeBlendSeconds,
   })
   face.setExpression(cell.expression)
 

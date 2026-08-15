@@ -94,6 +94,35 @@ to be a second list maintained by hand in `apps/kiosk/src/App.tsx`, which meant
 renaming an id pointed a key at a 404 with nothing to say so; there is now one
 source for the mapping and no list to keep in step.
 
+### Mouth shapes are measured, not guessed
+
+Force-align each recording against its script:
+
+```bash
+npm run bake:visemes                    # PocketSphinx — `pip install -r scripts/align/requirements.txt`
+npm run bake:visemes -- --backend mfa   # Montreal Forced Aligner — better, needs conda
+```
+
+This writes `<id>.phones.json` beside each MP3 — where every phone in the answer
+starts and ends, measured — and points the manifest at it with `phonesFile`. The
+kiosk maps those to mouth shapes at runtime, which is what makes the lips meet on
+an /m/ and the tongue appear on a /θ/ instead of the analyser approximating both
+from the spectrum. Full reasoning, and why MFA over the alternatives, in
+`docs/forced-alignment.md`.
+
+The sidecars are **committed**, like the manifest: a clone, a build and the kiosk
+need nothing installed. Only re-aligning does.
+
+Two things will stop the bake, both on purpose:
+
+- **A word it has no pronunciation for.** Add it to `content/lexicon.txt`, in
+  ARPAbet, with as many alternate readings as you think plausible — the aligner
+  scores them against the recording and keeps the one that is actually in it.
+  Left unhandled, an aligner mimes the word as silence and says nothing about it.
+- **A recording that does not match its script.** Reported as a low speech
+  percentage, which is nearly always the wrong MP3 or an edit to `qa.json` that
+  never got re-rendered.
+
 ### Gesture timing is baked, not guessed
 
 After rendering, resolve each answer's inline tags to real audio times:
@@ -110,12 +139,12 @@ which is the difference between a wave landing on "hello" and just after it.
 
 Where the times come from, best first:
 
-1. **`<id>.alignment.json` beside the MP3** — per-character timings captured when
-   the audio was generated. Exact. This is the reason to keep the timestamped
-   variant of whatever TTS renders the bank; the same file also feeds the
-   lip-sync closure track, which is what makes the lips actually meet on an /m/
-   rather than approximating it from the spectrum.
-2. **Proportional across the measured duration** — a straight-line guess, no
+1. **`<id>.phones.json` word boundaries** — from the aligner above. A cue belongs
+   before a *word*, so this is the source that answers the question being asked.
+   Run `bake:visemes` before `bake:gestures` and this is what you get.
+2. **`<id>.alignment.json` beside the MP3** — per-character timings captured when
+   the audio was generated, if the TTS reported them.
+3. **Proportional across the measured duration** — a straight-line guess, no
    better than what the app already infers at runtime. Its value is that it puts
    a number in a file a human can then correct by ear.
 

@@ -50,6 +50,8 @@ export interface EnubotConfig {
     blinkIntervalRange: [number, number]
     /** Chance a blink is a double-blink. */
     doubleBlinkChance: number
+    /** Mouth-shape blend time. See ProceduralFaceOptions. */
+    shapeBlendSeconds: number
   }
 
   /** Camera and detector settings. Everything here is a cost/quality dial. */
@@ -150,6 +152,8 @@ export interface EnubotConfig {
     articulationDetail: ArticulationDetail
     /** Floor on how long a mouth shape is shown. See LipSyncOptions. */
     minVisemeSeconds: number
+    /** Floor on a measured shape's duration. See LipSyncOptions. */
+    minMeasuredSeconds: number
     /** Where the analyser draws its lines. See VisemeBands. */
     bands: VisemeBands
   }
@@ -183,6 +187,11 @@ const config: EnubotConfig = {
     canvasSize: 512,
     blinkIntervalRange: [3, 6],
     doubleBlinkChance: 0.1,
+    // Kept where it was tuned against the guessing sources. With a measured
+    // phone track driving the mouth there is no classifier flicker left to hide,
+    // so this can come down — 0.025 or so — and the consonants get crisper. It is
+    // a look decision, which is why it is a dial here and not a constant there.
+    shapeBlendSeconds: 0.04,
   },
 
   visionTuning: {
@@ -252,6 +261,11 @@ const config: EnubotConfig = {
     // it. The analyser-only path drops from 8.1 to about 6 over the same change,
     // which costs nothing since its vowel flicker was never a real articulation.
     minVisemeSeconds: 0.13,
+    // Two frames at 60fps. This is a different number doing a different job from
+    // the one above: measured phone boundaries need no jitter suppression, they
+    // need only to survive long enough to be drawn. A /t/ can be a real 30ms and
+    // the mouth should show all 30 of them.
+    minMeasuredSeconds: 0.033,
     // F1 moves with jaw opening, F2 with tongue position, and fricative noise
     // sits above both — /ʃ/ peaks around 3kHz, /s/ from roughly 4.5kHz up.
     //

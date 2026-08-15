@@ -1,18 +1,24 @@
 import type { AudioBus } from './AudioBus.ts'
 import { AlignmentTrack } from './alignment.ts'
-import type { Articulation, ArticulationDetail } from './alignment.ts'
+import type { ArticulationDetail } from './alignment.ts'
+import { VisemeTrack } from './visemes.ts'
 
 export interface LipSyncOptions {
   attackSeconds: number
   releaseSeconds: number
   noiseFloor: number
   /**
-   * Query the articulation track this far ahead of playback position.
+   * Query the timed tracks this far ahead of playback position.
    *
-   * Alignment is predictive where the analyser is reactive, and the face adds its
-   * own lag on top: the mouth blends over ~30ms and the frame it is drawn on is
-   * already up to 16ms old. Leading by roughly that sum lands the gesture on the
-   * sound rather than just after it.
+   * Both timed sources are predictive where the analyser is reactive, and the
+   * face adds its own lag on top: the mouth blends over ~30ms and the frame it is
+   * drawn on is already up to 16ms old. Leading by roughly that sum lands the
+   * gesture on the sound rather than just after it.
+   *
+   * The bus's own output latency is subtracted from this at query time, because
+   * it pulls the other way — what a visitor is hearing at this instant left the
+   * mixer some milliseconds ago, so part of the lead is already spent. See
+   * `AudioBus.outputLatencySeconds`.
    */
   articulationLeadSeconds: number
   /** Shortest an articulation may render for. See AlignmentTrackOptions. */
@@ -31,8 +37,19 @@ export interface LipSyncOptions {
    *
    * This is a floor on shape duration, not a smoothing filter: the shapes stay
    * crisp, there are just fewer of them. `PP` is exempt — see `#hold`.
+   *
+   * Does not apply to the measured track. See `minMeasuredSeconds`.
    */
   minVisemeSeconds: number
+  /**
+   * Floor on a *measured* shape's duration. See VisemeTrackOptions.
+   *
+   * Separate from `minVisemeSeconds`, and much smaller, because the two solve
+   * opposite problems. That one suppresses flicker from sources that change
+   * shape faster than a jaw can; this one only guarantees a shape that really
+   * did happen survives long enough to be drawn on a frame.
+   */
+  minMeasuredSeconds: number
   /** Vowel and fricative classifier thresholds. See `VisemeBands`. */
   bands: VisemeBands
 }
@@ -108,7 +125,7 @@ export interface LipSyncFrame {
 }
 
 /**
- * Ceiling on how far each articulation may open the jaw.
+ * Ceiling on how far each shape may open the jaw.
  *
  * The envelope still drives the mouth underneath; these only cap it. Without the
  * cap a consonant inherits the aperture of the vowel beside it, which is how
@@ -117,8 +134,14 @@ export interface LipSyncFrame {
  *
  * `PP` at zero is what makes it worth detecting at all: pressed lips are the one
  * shape an analyser cannot tell apart from silence.
+ *
+ * Keyed by viseme rather than by source, so a /s/ is a narrow tense slot whether
+ * the analyser heard the sibilance, the spelling implied it, or an aligner
+ * measured it. The vowels are deliberately absent: their aperture is the
+ * envelope's to decide, which is what makes a shouted "aa" bigger than a
+ * muttered one.
  */
-const APERTURE: Record<Articulation, number> = {
+const APERTURE: Partial<Record<Viseme, number>> = {
   PP: 0,
   /** Not zero — /f/ shows a slot between the teeth and the lower lip. */
   FF: 0.28,
@@ -128,23 +151,14 @@ const APERTURE: Record<Articulation, number> = {
   nn: 0.3,
   /** A velar drops the jaw more than a coronal does; /k/ is a visibly open sound. */
   kk: 0.4,
+  /** The postalveolar pair are rounded and slightly more open than /s/. */
   CH: 0.3,
   RR: 0.38,
   /** /w/ is a pucker, and a pucker needs depth or it reads as a pressed lip. */
   ou: 0.5,
+  /** A sibilant is a narrow tense slot, near enough closed. */
+  SS: 0.22,
 }
-
-/**
- * A sibilant is a narrow tense slot, near enough closed.
- *
- * Capped rather than left to the envelope for the same reason as the
- * articulations above, and separately from them because this one comes from the
- * analyser — it applies even on the cached-answer path, which carries no
- * alignment data at all.
- */
-const SS_APERTURE = 0.22
-/** The postalveolar pair are rounded and slightly more open than /s/. */
-const CH_APERTURE = 0.3
 
 /**
  * Drives the mouth from Enubot's own speech.
@@ -163,6 +177,12 @@ const CH_APERTURE = 0.3
 export class LipSync {
   /** Alignment sink. Empty means pure DSP, which is the cached-answer path. */
   readonly alignment: AlignmentTrack
+  /**
+   * Measured phone sink, filled from a `<id>.phones.json` sidecar when the bake
+   * has produced one. Outranks both other sources wherever it has something to
+   * say — see visemes.ts.
+   */
+  readonly visemes: VisemeTrack
 
   #bus: AudioBus
   #opts: LipSyncOptions
@@ -187,6 +207,7 @@ export class LipSync {
       minArticulationSeconds: opts.minArticulationSeconds,
       detail: opts.articulationDetail,
     })
+    this.visemes = new VisemeTrack({ minSpanSeconds: opts.minMeasuredSeconds })
 
     // Bands are declared in Hz and used as bin indices. Deriving them from the
     // real sample rate is the whole reason they're meaningful: the previous
@@ -235,18 +256,52 @@ export class LipSync {
     // The envelope is advanced before any override, never inside the branch —
     // an articulation that froze the level would make the mouth lurch back open
     // the moment it released.
-    const articulation = this.alignment.articulationAt(
-      this.#bus.playbackSeconds + this.#opts.articulationLeadSeconds,
-    )
-    const viseme = this.#hold(articulation ?? this.#viseme())
+    const at = this.#bus.playbackSeconds + this.#lead()
+
+    // Three sources, most-informed first. A measured phone outranks a spelling
+    // because it is the same fact without the guess, and both outrank the
+    // analyser because it cannot see a consonant at all.
+    const measured = this.visemes.visemeAt(at)
+    const viseme =
+      measured === null ? this.#hold(this.alignment.articulationAt(at) ?? this.#viseme()) : this.#show(measured)
 
     // The aperture is read from whatever is actually being shown, not from what
     // was asked for: capping a held /s/ with the jaw of the vowel that replaced
     // it is how the mouth ends up open on a shape that is closed.
-    if (viseme === 'SS') return { mouthOpen: Math.min(this.#gate(), SS_APERTURE), viseme }
-    if (viseme === 'CH') return { mouthOpen: Math.min(this.#gate(), CH_APERTURE), viseme }
-    const cap = APERTURE[viseme as Articulation]
+    const cap = APERTURE[viseme]
     return { mouthOpen: cap === undefined ? this.#gate() : Math.min(this.#gate(), cap), viseme }
+  }
+
+  /**
+   * How far ahead of playback position the timed tracks are read.
+   *
+   * The configured lead compensates the face's own blend and one frame of render
+   * lag. Output latency is the term that pulls the other way and was previously
+   * missing: `playbackSeconds` is where the mixer is, and the speaker is behind
+   * it by however long the device's buffer is — 10ms or so on a desktop, several
+   * times that through Bluetooth or a display's audio return channel. Leading by
+   * the full amount on top of that puts the mouth ahead of the sound.
+   */
+  #lead(): number {
+    return Math.max(0, this.#opts.articulationLeadSeconds - this.#bus.outputLatencySeconds)
+  }
+
+  /**
+   * Show a measured shape now, whatever is currently held.
+   *
+   * Deliberately not subject to `#hold`. That floor exists because the analyser
+   * and the spelling both change shape faster than a mouth can, and neither
+   * knows when it is wrong; a phone boundary is a measurement, and a 60ms /t/
+   * that gets held back is exactly the articulation this path was added for.
+   * The hold's timer is still reset, so handing back to the other sources at the
+   * end of a clip starts from a clean slate rather than mid-count.
+   */
+  #show(viseme: Viseme): Viseme {
+    if (viseme !== this.#held) {
+      this.#held = viseme
+      this.#heldSeconds = 0
+    }
+    return viseme
   }
 
   /**
