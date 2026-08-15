@@ -46,6 +46,16 @@ const MANIFEST = {
   },
 }
 
+/** Six answers, no sidecars, so the warm's concurrency and order are visible. */
+const WIDE_MANIFEST = {
+  answers: ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({
+    id,
+    question: `${id}?`,
+    answer: `${id}.`,
+    file: `${id}.mp3`,
+  })),
+}
+
 /** Every clip decodes to a five-second buffer; only its duration is ever read. */
 const BUFFER = { duration: 5 } as AudioBuffer
 
@@ -84,9 +94,17 @@ function makeDriver() {
     decodeAudioData: vi.fn(async () => BUFFER),
   } as unknown as AudioContext
   const driver = new CachedDriver({ audioContext, proxyUrl: 'http://127.0.0.1:8787' })
+  // Turn events and warm progress are collected apart. They travel on the same
+  // channel but answer different questions — one is what the visitor is being
+  // told, the other is how much of the bank is downloaded — and an assertion
+  // about a turn should not have to step over the boot chatter to make it.
   const events: DriverEvent[] = []
-  driver.on((event) => events.push(event))
-  return { driver, events, audioContext }
+  const warming: Array<Extract<DriverEvent, { type: 'warming' }>> = []
+  driver.on((event) => {
+    if (event.type === 'warming') warming.push(event)
+    else events.push(event)
+  })
+  return { driver, events, warming, audioContext }
 }
 
 /** Drain timers and the microtasks the decode chain resolves through. */
@@ -94,6 +112,11 @@ async function settle() {
   for (let i = 0; i < 8; i++) {
     await vi.advanceTimersByTimeAsync(50)
   }
+}
+
+/** Drain microtasks only, so nothing that is merely waiting on a timer moves. */
+async function flush() {
+  for (let i = 0; i < 30; i++) await Promise.resolve()
 }
 
 beforeEach(() => {
@@ -308,6 +331,99 @@ describe('CachedDriver', () => {
     const { driver } = makeDriver()
 
     await expect(driver.connect()).rejects.toThrow(/returned HTML/)
+  })
+
+  /**
+   * The warm, which is what boot holds the screen for.
+   *
+   * Nothing here is about how an answer sounds — it is about the bank being in
+   * memory before anyone can press the button. A press that has to wait on a
+   * fetch is the failure this whole path exists to prevent, and it used to be
+   * the normal case on a cold load.
+   */
+  describe('warming the bank', () => {
+    it('announces the total before connect resolves, and counts to it', async () => {
+      const { driver, warming } = makeDriver()
+      await driver.connect()
+
+      // Before, not after: the runtime reads this to decide whether a warm is
+      // even coming, and a driver that says nothing is treated as ready.
+      expect(warming[0]).toEqual({ type: 'warming', done: 0, total: 3 })
+
+      await settle()
+
+      // Two answers plus the refusal clip. Done equals total is what readiness is.
+      expect(warming.at(-1)).toEqual({ type: 'warming', done: 3, total: 3 })
+    })
+
+    it('warms a few at a time, in the order the press-to-talk cursor walks', async () => {
+      const gates = new Map<string, () => void>()
+      const started: string[] = []
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: string) => {
+          const url = String(input)
+          if (url.endsWith('manifest.json')) {
+            return {
+              ok: true,
+              headers: new Headers({ 'content-type': 'application/json' }),
+              json: async () => WIDE_MANIFEST,
+            } as unknown as Response
+          }
+          started.push(url.split('/').pop() ?? url)
+          await new Promise<void>((resolve) => gates.set(url, resolve))
+          return {
+            ok: true,
+            headers: new Headers({ 'content-type': 'audio/mpeg' }),
+            arrayBuffer: async () => new ArrayBuffer(8),
+          } as unknown as Response
+        }),
+      )
+
+      const { driver } = makeDriver()
+      await driver.connect()
+      await flush()
+
+      // Firing all six at once is what this replaced: every clip landed in one
+      // heap, so the one the first press needs finished near last.
+      expect(started).toEqual(['a.mp3', 'b.mp3', 'c.mp3'])
+
+      gates.get('/fallback/a.mp3')?.()
+      await flush()
+
+      // A slot frees, the next clip in bank order takes it.
+      expect(started).toEqual(['a.mp3', 'b.mp3', 'c.mp3', 'd.mp3'])
+    })
+
+    it('counts a clip that fails, so one 404 cannot hold the screen', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: string) => {
+          const url = String(input)
+          if (url.endsWith('manifest.json')) {
+            return {
+              ok: true,
+              headers: new Headers({ 'content-type': 'application/json' }),
+              json: async () => MANIFEST,
+            } as unknown as Response
+          }
+          if (url.endsWith('keynote.mp3')) return { ok: false, status: 404 } as unknown as Response
+          return {
+            ok: true,
+            headers: new Headers({ 'content-type': 'audio/mpeg' }),
+            arrayBuffer: async () => new ArrayBuffer(8),
+          } as unknown as Response
+        }),
+      )
+
+      const { driver, warming } = makeDriver()
+      await driver.connect()
+      await settle()
+
+      // The missing clip fails on its own press, recoverably, exactly as before.
+      // What it must not do is leave the kiosk behind a loading bar for ever.
+      expect(warming.at(-1)).toEqual({ type: 'warming', done: 3, total: 3 })
+    })
   })
 })
 

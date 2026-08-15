@@ -39,9 +39,37 @@ export class AudioBus {
    * Browsers suspend a context created without a user gesture. The kiosk Chrome
    * flags cover this, but a stray suspended context is silent audio with no
    * error, so resume defensively on first interaction too.
+   *
+   * Never await this on a startup path. `resume()` on a context the browser has
+   * blocked does not reject and does not resolve — the spec parks the promise
+   * until user activation arrives — so anything sequenced behind it waits for the
+   * visitor to touch something. Boot used to await it, which meant the answer
+   * cache started downloading at the moment of the first press instead of before
+   * it, and that press was the one that felt broken.
    */
   async unlock(): Promise<void> {
     if (this.ctx.state === 'suspended') await this.ctx.resume()
+  }
+
+  /**
+   * Resume on the first interaction anywhere, not just on the talk button.
+   *
+   * Decoding works fine on a suspended context, so the bank can warm before this
+   * ever fires; what it buys is that the context is already running by the time
+   * a buffer is scheduled, rather than resuming in the same tick. Returns a
+   * disposer.
+   */
+  unlockOnFirstGesture(): () => void {
+    const types = ['pointerdown', 'keydown', 'touchstart'] as const
+    const onGesture = () => {
+      void this.unlock()
+      off()
+    }
+    const off = () => {
+      for (const type of types) window.removeEventListener(type, onGesture)
+    }
+    for (const type of types) window.addEventListener(type, onGesture, { passive: true })
+    return off
   }
 
   /**

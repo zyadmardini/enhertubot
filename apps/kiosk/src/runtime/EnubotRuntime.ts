@@ -22,6 +22,19 @@ import { hashString } from '../core/random.ts'
 import type { ConversationState, GestureName } from '../core/types.ts'
 import { STATE_EXPRESSIONS, TAG_EXPRESSIONS } from '../core/types.ts'
 
+/**
+ * How much of the voice the driver has in hand.
+ *
+ * `total` is 0 until a driver says it has something to warm, and a driver that
+ * never says so is ready as soon as it connects — the mock synthesises its
+ * babble and a live socket has no bank to download.
+ */
+export interface VoiceReadiness {
+  done: number
+  total: number
+  ready: boolean
+}
+
 interface RuntimeEvents extends Record<string, unknown> {
   state: ConversationState
   gesture: GestureName
@@ -32,6 +45,8 @@ interface RuntimeEvents extends Record<string, unknown> {
   presence: boolean
   /** Enubot decided to say hello, and why. */
   greeting: GreetTrigger
+  /** Boot progress for the voice. See VoiceReadiness. */
+  voice: VoiceReadiness
 }
 
 /**
@@ -83,6 +98,8 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
    */
   #turnCounter = 0
   #healthTimer: ReturnType<typeof setInterval> | null = null
+  #voice: VoiceReadiness = { done: 0, total: 0, ready: false }
+  #unlockOff: (() => void) | null = null
 
   /** Capture time of the last sample fed to presence/wave — they must not see one twice. */
   #lastSampleT = -1
@@ -129,19 +146,57 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
     return this.#presence.present
   }
 
+  /** How much of the voice is downloaded and decoded. Boot waits on this. */
+  get voice(): VoiceReadiness {
+    return this.#voice
+  }
+
+  /**
+   * Bring everything up, in parallel, and never behind the visitor.
+   *
+   * The order here was the whole of the cold-start problem. It used to be
+   * `await unlock()` → `await vision.start()` → `connect()`, which is three
+   * serial waits with the one thing a visitor actually notices at the end of
+   * them. Worse, the first of the three does not resolve at all until the
+   * browser has seen a user gesture, so on any machine without the kiosk's
+   * autoplay flag the answer cache did not begin downloading until the first
+   * press — and that press then waited for the manifest, a fetch and a decode
+   * before it made a sound.
+   *
+   * Now: unlock is fire-and-forget, vision and voice start together, and the
+   * driver is the one that gets awaited, because it is the one boot is waiting
+   * for. Vision coming up late costs eye contact for a second; voice coming up
+   * late costs the answer.
+   */
   async start(): Promise<void> {
-    await this.bus.unlock()
-    await this.#vision.start()
+    void this.bus.unlock()
+    this.#unlockOff = this.bus.unlockOnFirstGesture()
+
+    // Vision never rejects — every failure path inside it degrades to the idle
+    // scan — but it is started rather than awaited regardless: on the booth build
+    // it is a worker, ~10MB of wasm and models, and a camera permission prompt,
+    // none of which the answer cache should be queued behind.
+    const vision = this.#vision.start().catch((error: unknown) => {
+      console.warn('[enubot] Vision failed to start; falling back to the idle scan.', error)
+    })
+
     try {
       await this.#driver.connect()
+      // A driver with nothing to warm — the mock, a live socket — is ready as
+      // soon as it is connected.
+      if (this.#voice.total === 0) this.#setVoice({ done: 0, total: 0, ready: true })
     } catch (error) {
       // A driver that can't connect must not take the scene down with it: the
       // attract loop, tracking and canned answers all still work without it.
       console.error('[enubot] Driver failed to connect.', error)
       this.emit('health', false)
+      // And it must not hold boot behind a warm that is never coming.
+      this.#setVoice({ ...this.#voice, ready: true })
     }
+
     this.#healthTimer = setInterval(() => void this.#checkHealth(), 10_000)
     void this.#checkHealth()
+    await vision
   }
 
   /** Push-to-talk pressed. Also the barge-in path. */
@@ -234,6 +289,8 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
 
   dispose(): void {
     if (this.#healthTimer !== null) clearInterval(this.#healthTimer)
+    this.#unlockOff?.()
+    this.#unlockOff = null
     for (const off of this.#unsubscribers) off()
     this.#unsubscribers = []
     this.#driver.disconnect()
@@ -375,6 +432,14 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
             break
           }
 
+          case 'warming':
+            this.#setVoice({
+              done: event.done,
+              total: event.total,
+              ready: event.done >= event.total,
+            })
+            break
+
           case 'error':
             console.error('[enubot] Driver error:', event.message)
             this.machine.send({ type: 'error', recoverable: event.recoverable })
@@ -382,6 +447,11 @@ export class EnubotRuntime extends Emitter<RuntimeEvents> {
         }
       }),
     )
+  }
+
+  #setVoice(next: VoiceReadiness): void {
+    this.#voice = next
+    this.emit('voice', next)
   }
 
   /** Clear last turn's captions so the new one doesn't start with stale text. */

@@ -153,6 +153,43 @@ any single detection, `wave.ts` wants an open palm held up and swinging, and
 agrees, because the failure mode on a busy floor is a robot that waves
 constantly. All four are pure and unit-tested; none of them import MediaPipe.
 
+## Cold start
+
+The kiosk needs two downloads before it is worth showing anyone: 1.3MB of rigged
+character and 1.3MB of pre-rendered answers. Both are fetched behind a boot
+screen (`boot/`, `ui/BootScreen.tsx`), and the kiosk appears when both are in
+memory — the model parsed, the whole bank decoded into `AudioBuffer`s.
+
+Waiting is the point. Either half arriving late is a visible failure of its own
+kind: a stand-in robot that swaps bodies while someone watches, or a press that
+stands there in silence. Both used to happen, and the causes were ordering rather
+than weight:
+
+- **Nothing started until React had mounted.** The model was found by a HEAD
+  probe, which cost a round trip to learn what the load itself reports, and only
+  then came a lazy chunk and only then the GLB. `index.html` now preloads the GLB
+  and the manifest, so both are moving while the bundle is still downloading —
+  measured on a throttled link, the GLB's first byte moved at 90ms instead of
+  1.2s.
+- **The answer cache queued behind the camera.** `EnubotRuntime.start()` awaited
+  `bus.unlock()` and then `vision.start()` before connecting the driver. The
+  first does not resolve until the browser sees a user gesture; the second, on
+  the booth build, is ~12MB of wasm and a camera permission prompt. On a
+  deployment with `vision: 'mediapipe'` that put the entire voice download behind
+  a dialog. Vision and voice now start together, and unlock is never awaited.
+- **The warm was a heap.** Every clip was fetched on the same tick, which
+  finishes the bank fast and starves the model — same link, bank at 1.8s and the
+  robot not on screen until 6.5s. Warming three at a time in `qa.json` order
+  gives bank at 3.8s and robot at 4.6s.
+
+The boot screen has a hard 15-second backstop (`boot/useBoot.ts`). A loading bar
+that never finishes is worse than a robot whose voice is still downloading, so a
+slow venue connection shows the kiosk anyway and the press waits on its own clip
+the way it used to.
+
+`?debug=1` reports the warm as `voice cache` in the HUD. Anything other than
+`ready` means a press would wait for a download.
+
 ## Commands
 
 | Command | What it does |
@@ -224,6 +261,14 @@ and `npm run vision:assets` runs as part of the build, so the MediaPipe wasm and
 models are in `dist/` without ever entering git. The build env therefore pins the
 real configuration — `VITE_ENUBOT_DRIVER=cached`, `VITE_ENUBOT_VISION=mediapipe`
 — not a degraded one.
+
+`vercel.json` also sets the cache headers those assets need. The GLB, the MP3s
+and the MediaPipe binaries get an hour of freshness and a day of
+`stale-while-revalidate`, so a kiosk restart serves them out of cache instead of
+revalidating 2.6MB one file at a time. `fallback/manifest.json` is deliberately
+excluded and served `no-cache`: it is the index that says which answers exist and
+what they say, and a stale index is the failure `npm run check:cache` exists to
+catch. One conditional request per load keeps it honest.
 
 `api/health.js` is the only server-side code deployed, and it holds no key. That
 is not a compromise: `EnubotRuntime.#checkHealth` is the *only* proxy call the

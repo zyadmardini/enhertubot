@@ -1,22 +1,28 @@
-import { lazy, Suspense } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { ContactShadows } from '@react-three/drei'
 import { PlaceholderRobot } from './PlaceholderRobot.tsx'
+import { GltfRobot } from './GltfRobot.tsx'
 import { ModelBoundary } from './ModelBoundary.tsx'
 import { DiagnosticsHandle } from './DiagnosticsHandle.tsx'
 import { DEBUG } from '../debug.ts'
+import type { CharacterModel } from './loadModel.ts'
 import type { EnubotRuntime } from '../runtime/EnubotRuntime.ts'
-
-// Loaded only after App confirms the GLB exists, so the GLTF loader is never
-// pulled in — let alone invoked — while the placeholder is standing in.
-const GltfRobot = lazy(() =>
-  import('./GltfRobot.tsx').then((module) => ({ default: module.GltfRobot })),
-)
 
 interface SceneProps {
   runtime: EnubotRuntime
-  /** True once enubot.glb is present; until then the placeholder stands in. */
-  hasModel: boolean
+  /**
+   * The parsed rig; `null` once we know there is not one to be had — a fresh
+   * clone with no GLB, or a model that failed to parse — and `undefined` while
+   * boot is still finding out.
+   *
+   * Undefined draws no character at all, and that is the point. Mounting the
+   * stand-in during boot builds twenty primitives, five materials and a texture
+   * upload, animates them, and throws the lot away a second later — all on the
+   * same thread that is parsing a 1.3MB GLB, and all behind a boot screen where
+   * nobody can see it. The placeholder is a fallback for a rig that never
+   * arrives, not a thing to look at while one does.
+   */
+  model: CharacterModel | null | undefined
 }
 
 /**
@@ -35,7 +41,7 @@ function RuntimeTicker({ runtime }: { runtime: EnubotRuntime }) {
   return null
 }
 
-export function Scene({ runtime, hasModel }: SceneProps) {
+export function Scene({ runtime, model }: SceneProps) {
   return (
     <>
       <RuntimeTicker runtime={runtime} />
@@ -50,11 +56,13 @@ export function Scene({ runtime, hasModel }: SceneProps) {
       <directionalLight position={[-3.5, 1.5, 2]} intensity={0.8} color="#cfd8ff" />
       <directionalLight position={[0, -2, 2]} intensity={0.35} color="#ffd9b8" />
 
-      {hasModel ? (
+      {/* No Suspense and no lazy import any more. Both existed to cover a load
+          that happened here, during render; the rig now arrives already parsed,
+          so the only fallback left is the one that matters — a rig that mounts
+          and then throws. ModelBoundary stays for exactly that. */}
+      {model === undefined ? null : model ? (
         <ModelBoundary fallback={<PlaceholderRobot runtime={runtime} />}>
-          <Suspense fallback={<PlaceholderRobot runtime={runtime} />}>
-            <GltfRobot runtime={runtime} />
-          </Suspense>
+          <GltfRobot runtime={runtime} model={model} />
         </ModelBoundary>
       ) : (
         <PlaceholderRobot runtime={runtime} />

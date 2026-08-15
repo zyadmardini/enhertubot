@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Enubot</title>
+
+    <!-- The two files the kiosk cannot start without, fetched while the HTML is
+         still parsing instead of after React has mounted. The GLB is ~1.3MB and
+         everything the robot says is behind the manifest, so both used to spend
+         the whole bundle download doing nothing. `as="fetch" crossorigin`
+         matches how they are actually requested — GLTFLoader and the driver both
+         go through fetch() — so these are reused rather than fetched twice. -->
+    <link rel="preload" href="/models/enubot.glb" as="fetch" crossorigin />
+    <link rel="preload" href="/fallback/manifest.json" as="fetch" crossorigin />
   </head>
   <body>
     <div id="root"></div>
