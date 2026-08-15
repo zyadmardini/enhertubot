@@ -184,8 +184,11 @@ for client review. Reach for it whenever the face changes — "does it look
 friendly" is the one question here no unit test can answer, so the substitute is
 making the whole state space visible at once.
 
-It is a dev tool and is not in the production build: Vite only bundles
-`index.html`.
+It is a dev tool. The dev server always serves it; a *build* takes `index.html`
+as its only entry unless `VITE_ENUBOT_DEBUG_PAGES=1` is set, which adds this page
+and `/lipsync.html`. `vercel.json` sets it, so the cloud preview has both and a
+kiosk build has neither — a booth screen should not carry a page a visitor can
+navigate to.
 
 ## Pinned versions, and why
 

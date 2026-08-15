@@ -18,7 +18,10 @@ import type { Viseme } from './audio/lipsync.ts'
  * they look like one mouth doing fifteen things rather than fifteen mouths. Both
  * of those are only visible with the whole set laid out at once.
  *
- * Not part of the production build: Vite only bundles index.html.
+ * Not in the kiosk build, but in the cloud preview's: a build takes
+ * `index.html` as its only entry unless `VITE_ENUBOT_DEBUG_PAGES=1` adds this
+ * page and the face sheet, which `vercel.json` sets. The dev server serves it
+ * either way. See vite.config.ts.
  */
 
 interface Cell {
@@ -142,6 +145,7 @@ function mount(cell: Cell, into: HTMLElement, word?: string): Live {
     size: config.face_.canvasSize,
     blinkIntervalRange: config.face_.blinkIntervalRange,
     doubleBlinkChance: config.face_.doubleBlinkChance,
+    shapeBlendSeconds: config.face_.shapeBlendSeconds,
   })
   face.setExpression(cell.expression)
 

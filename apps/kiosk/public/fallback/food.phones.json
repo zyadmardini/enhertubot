@@ -1,0 +1,451 @@
+{
+  "_comment": "Phone timings measured against the recording by a forced aligner, written by `npm run bake:visemes`. The kiosk maps these to mouth shapes at runtime — see apps/kiosk/src/audio/visemes.ts — so the mapping stays tunable without re-aligning. Committed for the same reason manifest.json is: it is what the app actually reads, and re-deriving it needs Python and the audio. Re-render the MP3 and this goes stale; the bake tracks that with phonesStamp in the manifest.",
+  "version": 1,
+  "aligner": "mfa",
+  "alphabet": "arpabet",
+  "durationSeconds": 8.725,
+  "words": [
+    {
+      "w": "coffee",
+      "start": 0.04,
+      "end": 0.6
+    },
+    {
+      "w": "is",
+      "start": 0.6,
+      "end": 0.73
+    },
+    {
+      "w": "by",
+      "start": 0.73,
+      "end": 0.93
+    },
+    {
+      "w": "the",
+      "start": 0.93,
+      "end": 1.09
+    },
+    {
+      "w": "entrance",
+      "start": 1.09,
+      "end": 1.72
+    },
+    {
+      "w": "all",
+      "start": 2.05,
+      "end": 2.24
+    },
+    {
+      "w": "day",
+      "start": 2.24,
+      "end": 2.67
+    },
+    {
+      "w": "lunch",
+      "start": 3.49,
+      "end": 3.85
+    },
+    {
+      "w": "turns",
+      "start": 3.85,
+      "end": 4.18
+    },
+    {
+      "w": "up",
+      "start": 4.18,
+      "end": 4.39
+    },
+    {
+      "w": "at",
+      "start": 4.39,
+      "end": 4.46
+    },
+    {
+      "w": "half",
+      "start": 4.46,
+      "end": 4.75
+    },
+    {
+      "w": "twelve",
+      "start": 4.75,
+      "end": 5.07
+    },
+    {
+      "w": "on",
+      "start": 5.07,
+      "end": 5.17
+    },
+    {
+      "w": "the",
+      "start": 5.17,
+      "end": 5.23
+    },
+    {
+      "w": "mezzanine",
+      "start": 5.23,
+      "end": 5.87
+    },
+    {
+      "w": "and",
+      "start": 6.25,
+      "end": 6.36
+    },
+    {
+      "w": "it",
+      "start": 6.36,
+      "end": 6.41
+    },
+    {
+      "w": "goes",
+      "start": 6.41,
+      "end": 6.68
+    },
+    {
+      "w": "fast",
+      "start": 6.68,
+      "end": 7.19
+    }
+  ],
+  "phones": [
+    {
+      "p": "SIL",
+      "start": 0,
+      "end": 0.04
+    },
+    {
+      "p": "K",
+      "start": 0.04,
+      "end": 0.15
+    },
+    {
+      "p": "AA1",
+      "start": 0.15,
+      "end": 0.28
+    },
+    {
+      "p": "F",
+      "start": 0.28,
+      "end": 0.4
+    },
+    {
+      "p": "IY0",
+      "start": 0.4,
+      "end": 0.6
+    },
+    {
+      "p": "IH1",
+      "start": 0.6,
+      "end": 0.67
+    },
+    {
+      "p": "Z",
+      "start": 0.67,
+      "end": 0.73
+    },
+    {
+      "p": "B",
+      "start": 0.73,
+      "end": 0.81
+    },
+    {
+      "p": "AY1",
+      "start": 0.81,
+      "end": 0.93
+    },
+    {
+      "p": "DH",
+      "start": 0.93,
+      "end": 0.99
+    },
+    {
+      "p": "IY0",
+      "start": 0.99,
+      "end": 1.09
+    },
+    {
+      "p": "EH1",
+      "start": 1.09,
+      "end": 1.18
+    },
+    {
+      "p": "N",
+      "start": 1.18,
+      "end": 1.24
+    },
+    {
+      "p": "T",
+      "start": 1.24,
+      "end": 1.34
+    },
+    {
+      "p": "R",
+      "start": 1.34,
+      "end": 1.37
+    },
+    {
+      "p": "AH0",
+      "start": 1.37,
+      "end": 1.42
+    },
+    {
+      "p": "N",
+      "start": 1.42,
+      "end": 1.49
+    },
+    {
+      "p": "S",
+      "start": 1.49,
+      "end": 1.72
+    },
+    {
+      "p": "SIL",
+      "start": 1.72,
+      "end": 2.05
+    },
+    {
+      "p": "AO1",
+      "start": 2.05,
+      "end": 2.2
+    },
+    {
+      "p": "L",
+      "start": 2.2,
+      "end": 2.24
+    },
+    {
+      "p": "D",
+      "start": 2.24,
+      "end": 2.32
+    },
+    {
+      "p": "EY1",
+      "start": 2.32,
+      "end": 2.67
+    },
+    {
+      "p": "SIL",
+      "start": 2.67,
+      "end": 3.49
+    },
+    {
+      "p": "L",
+      "start": 3.49,
+      "end": 3.61
+    },
+    {
+      "p": "AH1",
+      "start": 3.61,
+      "end": 3.68
+    },
+    {
+      "p": "N",
+      "start": 3.68,
+      "end": 3.73
+    },
+    {
+      "p": "CH",
+      "start": 3.73,
+      "end": 3.85
+    },
+    {
+      "p": "T",
+      "start": 3.85,
+      "end": 3.95
+    },
+    {
+      "p": "ER1",
+      "start": 3.95,
+      "end": 4.05
+    },
+    {
+      "p": "N",
+      "start": 4.05,
+      "end": 4.11
+    },
+    {
+      "p": "Z",
+      "start": 4.11,
+      "end": 4.18
+    },
+    {
+      "p": "AH1",
+      "start": 4.18,
+      "end": 4.3
+    },
+    {
+      "p": "P",
+      "start": 4.3,
+      "end": 4.39
+    },
+    {
+      "p": "AE1",
+      "start": 4.39,
+      "end": 4.42
+    },
+    {
+      "p": "T",
+      "start": 4.42,
+      "end": 4.46
+    },
+    {
+      "p": "HH",
+      "start": 4.46,
+      "end": 4.57
+    },
+    {
+      "p": "AE1",
+      "start": 4.57,
+      "end": 4.67
+    },
+    {
+      "p": "F",
+      "start": 4.67,
+      "end": 4.75
+    },
+    {
+      "p": "T",
+      "start": 4.75,
+      "end": 4.84
+    },
+    {
+      "p": "W",
+      "start": 4.84,
+      "end": 4.88
+    },
+    {
+      "p": "EH1",
+      "start": 4.88,
+      "end": 4.95
+    },
+    {
+      "p": "L",
+      "start": 4.95,
+      "end": 5.03
+    },
+    {
+      "p": "V",
+      "start": 5.03,
+      "end": 5.07
+    },
+    {
+      "p": "AA1",
+      "start": 5.07,
+      "end": 5.13
+    },
+    {
+      "p": "N",
+      "start": 5.13,
+      "end": 5.17
+    },
+    {
+      "p": "DH",
+      "start": 5.17,
+      "end": 5.2
+    },
+    {
+      "p": "AH0",
+      "start": 5.2,
+      "end": 5.23
+    },
+    {
+      "p": "M",
+      "start": 5.23,
+      "end": 5.31
+    },
+    {
+      "p": "EH1",
+      "start": 5.31,
+      "end": 5.41
+    },
+    {
+      "p": "Z",
+      "start": 5.41,
+      "end": 5.48
+    },
+    {
+      "p": "AH0",
+      "start": 5.48,
+      "end": 5.53
+    },
+    {
+      "p": "N",
+      "start": 5.53,
+      "end": 5.59
+    },
+    {
+      "p": "IY2",
+      "start": 5.59,
+      "end": 5.72
+    },
+    {
+      "p": "N",
+      "start": 5.72,
+      "end": 5.87
+    },
+    {
+      "p": "SIL",
+      "start": 5.87,
+      "end": 6.25
+    },
+    {
+      "p": "AE1",
+      "start": 6.25,
+      "end": 6.29
+    },
+    {
+      "p": "N",
+      "start": 6.29,
+      "end": 6.32
+    },
+    {
+      "p": "D",
+      "start": 6.32,
+      "end": 6.36
+    },
+    {
+      "p": "IH0",
+      "start": 6.36,
+      "end": 6.41
+    },
+    {
+      "p": "G",
+      "start": 6.41,
+      "end": 6.51
+    },
+    {
+      "p": "OW1",
+      "start": 6.51,
+      "end": 6.6
+    },
+    {
+      "p": "Z",
+      "start": 6.6,
+      "end": 6.68
+    },
+    {
+      "p": "F",
+      "start": 6.68,
+      "end": 6.76
+    },
+    {
+      "p": "AE1",
+      "start": 6.76,
+      "end": 6.97
+    },
+    {
+      "p": "S",
+      "start": 6.97,
+      "end": 7.1
+    },
+    {
+      "p": "T",
+      "start": 7.1,
+      "end": 7.19
+    },
+    {
+      "p": "SIL",
+      "start": 7.19,
+      "end": 8.725
+    }
+  ]
+}

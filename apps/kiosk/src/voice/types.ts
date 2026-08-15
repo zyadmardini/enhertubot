@@ -10,6 +10,7 @@
  */
 
 import type { CharAlignment } from '../audio/alignment.ts'
+import type { PhoneTrack } from '../audio/visemes.ts'
 import type { BakedTrack } from '../core/gestures.ts'
 
 export type DriverEvent =
@@ -33,8 +34,12 @@ export type DriverEvent =
    * one that doesn't falls back to the analyser with no branch anywhere
    * downstream. It rides on this event rather than its own so it cannot be
    * paired with the wrong chunk.
+   *
+   * `phones` is the same idea one rung up: measured phone boundaries, which no
+   * live vendor ships and an offline bake can produce for any audio whose script
+   * is known. Where both are present the phones win — see audio/visemes.ts.
    */
-  | { type: 'audio'; buffer: AudioBuffer; alignment?: CharAlignment }
+  | { type: 'audio'; buffer: AudioBuffer; alignment?: CharAlignment; phones?: PhoneTrack }
   | { type: 'error'; message: string; recoverable: boolean }
 
 export interface DriverDeps {
@@ -86,6 +91,24 @@ export interface CannedAnswer {
    * see audio/alignment.ts for why that one gap is the audible one.
    */
   alignmentFile?: string
+  /**
+   * Phone boundaries measured against this answer's recording by a forced
+   * aligner, written by `npm run bake:visemes`.
+   *
+   * The better half of the pair above, and the one the bank actually ships: a
+   * TTS that reports character times has to be asked for them at render time,
+   * whereas any recording at all can be aligned afterwards as long as its script
+   * is known. Present, it drives the mouth outright — see audio/visemes.ts.
+   */
+  phonesFile?: string
+  /**
+   * Staleness key for `phonesFile`, matching the answer text and audio size.
+   *
+   * Carried on the entry rather than inferred so a re-render invalidates the
+   * alignment: phone times measured against last week's recording are worse than
+   * none, because they are confidently wrong at every syllable.
+   */
+  phonesStamp?: string
 }
 
 /**

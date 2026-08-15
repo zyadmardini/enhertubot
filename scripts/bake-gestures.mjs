@@ -13,19 +13,22 @@
  * few hundred milliseconds, which is exactly enough for a wave to land after the
  * word it belongs to.
  *
- * Two sources, in order of preference:
+ * Three sources, in order of preference:
  *
- *   1. `<id>.alignment.json` beside the MP3 — per-character times captured when
- *      the audio was generated. Exact, and the reason to keep the timestamped
- *      variant of whatever TTS renders the bank.
- *   2. Proportional against the measured duration. No better than what the app
+ *   1. `<id>.phones.json` beside the MP3 — word boundaries measured against the
+ *      recording by a forced aligner, written by `npm run bake:visemes`. A cue
+ *      belongs to a word, not to a character offset, so this is the source that
+ *      matches the question being asked.
+ *   2. `<id>.alignment.json` — per-character times captured when the audio was
+ *      generated, if the TTS reported them.
+ *   3. Proportional against the measured duration. No better than what the app
  *      derives at runtime, and offered because it is a starting point a human can
  *      then correct.
  *
- * The second case is the one worth understanding: baking it changes nothing on
+ * The last case is the one worth understanding: baking it changes nothing on
  * its own. What it buys is a number sitting in a file that someone can nudge
  * until the gesture lands right, and that then stays nudged. Hand-edited times
- * survive a re-bake unless the answer's text or audio changed — see `stamp`.
+ * survive a re-bake unless the answer's text or audio changed — see `stampOf`.
  */
 
 import { readFile, writeFile } from 'node:fs/promises'
@@ -33,56 +36,13 @@ import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { parseTags, stampOf } from './lib/tags.mjs'
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const FALLBACK_DIR = path.join(ROOT, 'apps/kiosk/public/fallback')
 const MANIFEST_PATH = path.join(FALLBACK_DIR, 'manifest.json')
 
 const FORCE = process.argv.includes('--force')
-
-/**
- * Must stay in step with `parseGestureTags` in src/core/gestures.ts.
- *
- * Kept as a copy rather than imported because these scripts run on plain node
- * with no build step. `src/core/__tests__/bake.test.ts` runs the real parser
- * over the committed manifest and fails if the two ever disagree, so the
- * duplication is checked rather than trusted.
- */
-const GESTURE_NAMES = ['wave', 'bye', 'point', 'present', 'shrug', 'nod', 'shake', 'think']
-const EXPRESSION_NAMES = ['happy', 'confused', 'surprised', 'sorry']
-const TAG_PATTERN = /\[([a-z_]+)(\?)?\]/gi
-
-function parseTags(text) {
-  const cues = []
-  let clean = ''
-  let lastIndex = 0
-
-  const append = (chunk) => {
-    let next = chunk.replace(/[ \t]{2,}/g, ' ')
-    if (clean.length === 0 || /[ \t]$/.test(clean)) next = next.replace(/^[ \t]+/, '')
-    clean += next
-  }
-
-  TAG_PATTERN.lastIndex = 0
-  for (let match = TAG_PATTERN.exec(text); match !== null; match = TAG_PATTERN.exec(text)) {
-    append(text.slice(lastIndex, match.index))
-    lastIndex = match.index + match[0].length
-
-    const token = match[1]?.toLowerCase()
-    const optional = match[2] === '?'
-    if (GESTURE_NAMES.includes(token)) {
-      cues.push({ kind: 'gesture', name: token, charIndex: clean.length, optional })
-    } else if (EXPRESSION_NAMES.includes(token)) {
-      cues.push({ kind: 'expression', name: token, charIndex: clean.length })
-    } else {
-      append(match[0])
-    }
-  }
-  append(text.slice(lastIndex))
-
-  clean = clean.replace(/[ \t]+$/, '')
-  for (const cue of cues) cue.charIndex = Math.min(cue.charIndex, clean.length)
-  return { clean, cues }
-}
 
 /* ── MP3 duration ─────────────────────────────────────────────────────────── */
 
@@ -156,25 +116,53 @@ function mp3Duration(buffer) {
 /* ── Timing ───────────────────────────────────────────────────────────────── */
 
 /**
- * Audio time for a character position.
+ * How many words start before `charIndex`.
  *
- * With alignment, the answer is looked up directly. Without it, the character
- * position is scaled across the measured duration — which is honest about being
- * a straight-line guess, and is the number a human then corrects by ear.
+ * Tokenised the same way `scripts/align/align.py` tokenises the text it aligned,
+ * because the answer this feeds is an index into that aligner's word list. The
+ * two splitting on different rules is a class of bug that shows up as every cue
+ * in one answer being one word out.
  */
-function timeFor(charIndex, totalChars, duration, alignment) {
+function wordIndexAt(clean, charIndex) {
+  const pattern = /[a-z']+/g
+  const text = clean.toLowerCase().replace(/[—–-]/g, ' ')
+  let index = 0
+  for (let match = pattern.exec(text); match !== null; match = pattern.exec(text)) {
+    if (match.index >= charIndex) break
+    if (match[0].replace(/'/g, '').length > 0) index += 1
+  }
+  return index
+}
+
+/**
+ * Audio time for a character position, from the best source that has one.
+ *
+ * Word boundaries first: a `[point]` belongs before a word, and a forced aligner
+ * says exactly when that word starts. Character times next. Failing both, the
+ * character position is scaled across the measured duration — honest about being
+ * a straight-line guess, and the number a human then corrects by ear.
+ */
+function timeFor(charIndex, clean, duration, alignment, phones) {
+  const words = phones?.words
+  if (Array.isArray(words) && words.length > 0) {
+    const index = wordIndexAt(clean, charIndex)
+    // A cue past the last word belongs at the end of the audio, not at the start
+    // of the word before it.
+    const word = words[index]
+    if (word) return word.start
+    return words[words.length - 1]?.end ?? duration
+  }
+
   if (alignment) {
     const starts = alignment.charStartTimesMs
     const index = Math.min(charIndex, starts.length - 1)
     const ms = starts[index]
     if (typeof ms === 'number') return ms / 1000
   }
-  if (totalChars === 0) return 0
-  return (charIndex / totalChars) * duration
-}
 
-/** Cheap staleness key: re-bake when the words or the recording changed. */
-const stampOf = (answer, bytes) => `${answer.length}:${bytes}`
+  if (clean.length === 0) return 0
+  return (charIndex / clean.length) * duration
+}
 
 /* ── Run ──────────────────────────────────────────────────────────────────── */
 
@@ -233,12 +221,24 @@ for (const entry of entries) {
       problems.push(`"${entry.id}" — alignment file is not valid JSON: ${error.message}`)
     }
   }
-  if (!alignment) untimed += 1
+
+  const phonesPath = path.join(FALLBACK_DIR, `${entry.id}.phones.json`)
+  let phones = null
+  if (existsSync(phonesPath)) {
+    try {
+      phones = JSON.parse(await readFile(phonesPath, 'utf8'))
+      if (!Array.isArray(phones?.words) || phones.words.length === 0) {
+        problems.push(`"${entry.id}" — phones file has no words array.`)
+        phones = null
+      }
+    } catch (error) {
+      problems.push(`"${entry.id}" — phones file is not valid JSON: ${error.message}`)
+    }
+  }
+  if (!alignment && !phones) untimed += 1
 
   entry.cues = cues.map((cue) => {
-    const atSeconds = Number(
-      timeFor(cue.charIndex, clean.length, duration, alignment).toFixed(3),
-    )
+    const atSeconds = Number(timeFor(cue.charIndex, clean, duration, alignment, phones).toFixed(3))
     return cue.kind === 'expression'
       ? { kind: 'expression', name: cue.name, atSeconds }
       : { kind: 'gesture', name: cue.name, atSeconds, ...(cue.optional ? { optional: true } : {}) }
@@ -248,7 +248,7 @@ for (const entry of entries) {
   if (!entry.alignmentFile) delete entry.alignmentFile
 
   baked += 1
-  const source = alignment ? 'alignment' : 'proportional'
+  const source = phones ? 'word boundaries' : alignment ? 'alignment' : 'proportional'
   console.log(
     `  ${entry.id.padEnd(20)} ${String(cues.length).padStart(2)} cue(s)  ` +
       `${duration.toFixed(2)}s  (${source})`,
@@ -267,11 +267,12 @@ await writeFile(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
 console.log(`\n✓ Baked ${baked} answer(s)${skipped > 0 ? `, ${skipped} already current` : ''}.`)
 if (untimed > 0) {
   console.log(
-    `\n  ${untimed} answer(s) had no alignment file and were timed proportionally.\n` +
+    `\n  ${untimed} answer(s) had no timings to work from and were timed proportionally.\n` +
       '  That is a straight-line guess across the recording, not a measurement —\n' +
-      '  it matches what the app already infers at runtime. To improve on it,\n' +
-      '  either render with a timestamped TTS and drop <id>.alignment.json beside\n' +
-      '  the MP3, or edit the atSeconds values in the manifest by ear. Hand edits\n' +
-      '  survive re-baking unless the answer text or its audio changes.\n',
+      '  it matches what the app already infers at runtime. To improve on it, run\n' +
+      '  `npm run bake:visemes`, which force-aligns each recording against its\n' +
+      '  script and writes the word boundaries this step prefers. Failing that,\n' +
+      '  edit the atSeconds values in the manifest by ear: hand edits survive\n' +
+      '  re-baking unless the answer text or its audio changes.\n',
   )
 }

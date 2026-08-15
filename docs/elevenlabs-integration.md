@@ -241,8 +241,15 @@ sprite-sheet or 3D face.
 
 | Source | Owns | Runs for |
 |---|---|---|
-| Band-ratio analysis (`LipSync`) | vowels `aa E ih oh ou`, and the fricatives `SS` / `CH` | every audio source |
+| Measured phones (`VisemeTrack`) | **everything** — all fifteen shapes, from boundaries a forced aligner measured | any audio whose script is known, offline; the cached bank ships it |
 | Character alignment (`AlignmentTrack`) | consonant articulations — `PP` (p/b/m), `FF` (f/v/ph), `TH`, `DD` (t/d), `nn` (n/l/ng), `kk` (hard c/k/g), `CH` (ch/sh/j/soft g), `RR`, `ou` (w) | Route A live audio only |
+| Band-ratio analysis (`LipSync`) | vowels `aa E ih oh ou`, and the fricatives `SS` / `CH` | every audio source, and the floor under both of the above |
+
+**Superseded in part (2026-08-15): the cached bank is now force-aligned.** The two
+rows below the first are what remains where no measured track exists — the live
+path, and any answer that has not been through `npm run bake:visemes`. See
+`docs/forced-alignment.md`; the rest of this section describes the sources that
+still carry those cases.
 
 The split is where it is because consonants are the thing spectral analysis
 genuinely cannot do: a bilabial /m/ and a pause are both near-silent, so the
@@ -263,9 +270,10 @@ is the way to judge whether the wider set is better rather than merely busier.
 The inspector plays **the answer bank** — the eleven MP3s the `cached` driver
 serves — plus local babble. It does not call the proxy's `/tts-sample`; that
 endpoint still exists and still works, it simply is not wired to a UI while the
-voice is undecided. The bank ships no alignment (`alignmentFile` is absent on
-every entry), so by default those clips show the analyser working alone, which is
-what a visitor actually gets today.
+voice is undecided. The bank now ships **measured phone tracks** (`phonesFile` on
+every entry), so by default those clips show what a visitor actually gets today;
+the timing dropdown switches back to the analyser and to both estimates on the
+same clip, which is how to judge whether the aligner earned its place.
 
 ### Estimating alignment for audio that has none (2026-08-14)
 
@@ -298,14 +306,13 @@ to wait its turn.
 be dragged to scrub the recording frame by frame with the viseme shown under the
 playhead — which is the only practical way to tell a wrong shape from a late one.
 
-**This is an estimate, not alignment.** A real forced aligner (Montreal Forced
-Aligner, Gentle, whisper-timestamped) runs an acoustic model and gives boundaries
-that are correct rather than plausible. For a **pre-rendered** bank that is
-strictly the better answer and it belongs offline, in a bake step beside
-`bake:gestures`, writing `alignmentFile` into the manifest — the field already
-exists and `CachedDriver` already reads it. Until that exists, the estimate is
-what the cached path can have; it is currently wired only into the inspector, not
-into the driver, because it should be judged before it ships.
+**This was an estimate, not alignment — and it has since been replaced.** A real
+forced aligner runs an acoustic model and gives boundaries that are correct rather
+than plausible. That bake now exists: `npm run bake:visemes` writes `phonesFile`
+into the manifest, `CachedDriver` reads it, and the shipping numbers are 9.8
+changes/sec across 13.6 of the fifteen shapes. See `docs/forced-alignment.md` for
+why MFA over Gentle or whisper-timestamped, and what the live path still cannot
+have. The estimate stays, in the inspector, as the thing to compare against.
 
 Consequences worth knowing before touching it:
 
@@ -322,8 +329,15 @@ Consequences worth knowing before touching it:
   and no spend. `/faces.html` shows all fifteen visemes as a sheet, each at the
   aperture the runtime actually reaches for it.
 - Tuning is `lipSync.articulationLeadSeconds` and `lipSync.minArticulationSeconds`
-  in `enubot.config.ts`. The lead exists because alignment is predictive where the
-  analyser is reactive, and the face adds ~30ms of blend plus a frame of lag.
+  in `enubot.config.ts`. The lead exists because both timed sources are predictive
+  where the analyser is reactive, and the face adds ~30ms of blend plus a frame of
+  lag. `AudioBus.outputLatencySeconds` is subtracted from it at query time — the
+  speaker is behind the mixer by the device buffer, and that term pulls the other
+  way.
+- `lipSync.minVisemeSeconds` does **not** apply to the measured track, and
+  `lipSync.minMeasuredSeconds` (two frames) is its much smaller counterpart. The
+  first suppresses flicker from sources that guess; the second only stops a real
+  15ms /p/ falling between two frames.
 
 ---
 

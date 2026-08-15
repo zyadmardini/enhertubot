@@ -1,0 +1,536 @@
+{
+  "_comment": "Phone timings measured against the recording by a forced aligner, written by `npm run bake:visemes`. The kiosk maps these to mouth shapes at runtime — see apps/kiosk/src/audio/visemes.ts — so the mapping stays tunable without re-aligning. Committed for the same reason manifest.json is: it is what the app actually reads, and re-deriving it needs Python and the audio. Re-render the MP3 and this goes stale; the bake tracks that with phonesStamp in the manifest.",
+  "version": 1,
+  "aligner": "mfa",
+  "alphabet": "arpabet",
+  "durationSeconds": 6.923,
+  "words": [
+    {
+      "w": "i'm",
+      "start": 0.05,
+      "end": 0.23
+    },
+    {
+      "w": "enubot",
+      "start": 0.26,
+      "end": 0.81
+    },
+    {
+      "w": "i",
+      "start": 1.19,
+      "end": 1.25
+    },
+    {
+      "w": "live",
+      "start": 1.25,
+      "end": 1.47
+    },
+    {
+      "w": "on",
+      "start": 1.47,
+      "end": 1.58
+    },
+    {
+      "w": "this",
+      "start": 1.58,
+      "end": 1.72
+    },
+    {
+      "w": "screen",
+      "start": 1.72,
+      "end": 2.26
+    },
+    {
+      "w": "i",
+      "start": 2.51,
+      "end": 2.6
+    },
+    {
+      "w": "know",
+      "start": 2.6,
+      "end": 2.77
+    },
+    {
+      "w": "a",
+      "start": 2.77,
+      "end": 2.82
+    },
+    {
+      "w": "fair",
+      "start": 2.82,
+      "end": 3.09
+    },
+    {
+      "w": "bit",
+      "start": 3.09,
+      "end": 3.28
+    },
+    {
+      "w": "about",
+      "start": 3.28,
+      "end": 3.49
+    },
+    {
+      "w": "this",
+      "start": 3.49,
+      "end": 3.66
+    },
+    {
+      "w": "event",
+      "start": 3.66,
+      "end": 4.13
+    },
+    {
+      "w": "and",
+      "start": 4.39,
+      "end": 4.5
+    },
+    {
+      "w": "i'm",
+      "start": 4.5,
+      "end": 4.61
+    },
+    {
+      "w": "told",
+      "start": 4.61,
+      "end": 4.9
+    },
+    {
+      "w": "i",
+      "start": 4.9,
+      "end": 4.96
+    },
+    {
+      "w": "have",
+      "start": 4.96,
+      "end": 5.16
+    },
+    {
+      "w": "very",
+      "start": 5.16,
+      "end": 5.51
+    },
+    {
+      "w": "expressive",
+      "start": 5.51,
+      "end": 6.05
+    },
+    {
+      "w": "eyebrows",
+      "start": 6.05,
+      "end": 6.68
+    }
+  ],
+  "phones": [
+    {
+      "p": "SIL",
+      "start": 0,
+      "end": 0.05
+    },
+    {
+      "p": "AY1",
+      "start": 0.05,
+      "end": 0.16
+    },
+    {
+      "p": "M",
+      "start": 0.16,
+      "end": 0.23
+    },
+    {
+      "p": "SIL",
+      "start": 0.23,
+      "end": 0.26
+    },
+    {
+      "p": "EH1",
+      "start": 0.26,
+      "end": 0.35
+    },
+    {
+      "p": "N",
+      "start": 0.35,
+      "end": 0.38
+    },
+    {
+      "p": "Y",
+      "start": 0.38,
+      "end": 0.41
+    },
+    {
+      "p": "UW0",
+      "start": 0.41,
+      "end": 0.44
+    },
+    {
+      "p": "B",
+      "start": 0.44,
+      "end": 0.52
+    },
+    {
+      "p": "AA0",
+      "start": 0.52,
+      "end": 0.6
+    },
+    {
+      "p": "T",
+      "start": 0.6,
+      "end": 0.81
+    },
+    {
+      "p": "SIL",
+      "start": 0.81,
+      "end": 1.19
+    },
+    {
+      "p": "AY1",
+      "start": 1.19,
+      "end": 1.25
+    },
+    {
+      "p": "L",
+      "start": 1.25,
+      "end": 1.35
+    },
+    {
+      "p": "IH1",
+      "start": 1.35,
+      "end": 1.41
+    },
+    {
+      "p": "V",
+      "start": 1.41,
+      "end": 1.47
+    },
+    {
+      "p": "AA1",
+      "start": 1.47,
+      "end": 1.53
+    },
+    {
+      "p": "N",
+      "start": 1.53,
+      "end": 1.58
+    },
+    {
+      "p": "DH",
+      "start": 1.58,
+      "end": 1.62
+    },
+    {
+      "p": "IH1",
+      "start": 1.62,
+      "end": 1.67
+    },
+    {
+      "p": "S",
+      "start": 1.67,
+      "end": 1.72
+    },
+    {
+      "p": "S",
+      "start": 1.72,
+      "end": 1.8
+    },
+    {
+      "p": "K",
+      "start": 1.8,
+      "end": 1.86
+    },
+    {
+      "p": "R",
+      "start": 1.86,
+      "end": 1.92
+    },
+    {
+      "p": "IY1",
+      "start": 1.92,
+      "end": 2.07
+    },
+    {
+      "p": "N",
+      "start": 2.07,
+      "end": 2.26
+    },
+    {
+      "p": "SIL",
+      "start": 2.26,
+      "end": 2.51
+    },
+    {
+      "p": "AY1",
+      "start": 2.51,
+      "end": 2.6
+    },
+    {
+      "p": "N",
+      "start": 2.6,
+      "end": 2.66
+    },
+    {
+      "p": "OW1",
+      "start": 2.66,
+      "end": 2.77
+    },
+    {
+      "p": "AH0",
+      "start": 2.77,
+      "end": 2.82
+    },
+    {
+      "p": "F",
+      "start": 2.82,
+      "end": 2.95
+    },
+    {
+      "p": "EH1",
+      "start": 2.95,
+      "end": 3.02
+    },
+    {
+      "p": "R",
+      "start": 3.02,
+      "end": 3.09
+    },
+    {
+      "p": "B",
+      "start": 3.09,
+      "end": 3.18
+    },
+    {
+      "p": "IH1",
+      "start": 3.18,
+      "end": 3.24
+    },
+    {
+      "p": "T",
+      "start": 3.24,
+      "end": 3.28
+    },
+    {
+      "p": "AH0",
+      "start": 3.28,
+      "end": 3.32
+    },
+    {
+      "p": "B",
+      "start": 3.32,
+      "end": 3.37
+    },
+    {
+      "p": "AW1",
+      "start": 3.37,
+      "end": 3.44
+    },
+    {
+      "p": "T",
+      "start": 3.44,
+      "end": 3.49
+    },
+    {
+      "p": "DH",
+      "start": 3.49,
+      "end": 3.53
+    },
+    {
+      "p": "IH1",
+      "start": 3.53,
+      "end": 3.57
+    },
+    {
+      "p": "S",
+      "start": 3.57,
+      "end": 3.66
+    },
+    {
+      "p": "IH0",
+      "start": 3.66,
+      "end": 3.71
+    },
+    {
+      "p": "V",
+      "start": 3.71,
+      "end": 3.77
+    },
+    {
+      "p": "EH1",
+      "start": 3.77,
+      "end": 3.88
+    },
+    {
+      "p": "N",
+      "start": 3.88,
+      "end": 3.96
+    },
+    {
+      "p": "T",
+      "start": 3.96,
+      "end": 4.13
+    },
+    {
+      "p": "SIL",
+      "start": 4.13,
+      "end": 4.39
+    },
+    {
+      "p": "AE1",
+      "start": 4.39,
+      "end": 4.43
+    },
+    {
+      "p": "N",
+      "start": 4.43,
+      "end": 4.46
+    },
+    {
+      "p": "D",
+      "start": 4.46,
+      "end": 4.5
+    },
+    {
+      "p": "AY1",
+      "start": 4.5,
+      "end": 4.54
+    },
+    {
+      "p": "M",
+      "start": 4.54,
+      "end": 4.61
+    },
+    {
+      "p": "T",
+      "start": 4.61,
+      "end": 4.7
+    },
+    {
+      "p": "OW1",
+      "start": 4.7,
+      "end": 4.76
+    },
+    {
+      "p": "L",
+      "start": 4.76,
+      "end": 4.85
+    },
+    {
+      "p": "D",
+      "start": 4.85,
+      "end": 4.9
+    },
+    {
+      "p": "AY1",
+      "start": 4.9,
+      "end": 4.96
+    },
+    {
+      "p": "HH",
+      "start": 4.96,
+      "end": 5.03
+    },
+    {
+      "p": "AE1",
+      "start": 5.03,
+      "end": 5.09
+    },
+    {
+      "p": "V",
+      "start": 5.09,
+      "end": 5.16
+    },
+    {
+      "p": "V",
+      "start": 5.16,
+      "end": 5.24
+    },
+    {
+      "p": "EH1",
+      "start": 5.24,
+      "end": 5.34
+    },
+    {
+      "p": "R",
+      "start": 5.34,
+      "end": 5.43
+    },
+    {
+      "p": "IY0",
+      "start": 5.43,
+      "end": 5.51
+    },
+    {
+      "p": "IH0",
+      "start": 5.51,
+      "end": 5.57
+    },
+    {
+      "p": "K",
+      "start": 5.57,
+      "end": 5.62
+    },
+    {
+      "p": "S",
+      "start": 5.62,
+      "end": 5.7
+    },
+    {
+      "p": "P",
+      "start": 5.7,
+      "end": 5.76
+    },
+    {
+      "p": "R",
+      "start": 5.76,
+      "end": 5.8
+    },
+    {
+      "p": "EH1",
+      "start": 5.8,
+      "end": 5.85
+    },
+    {
+      "p": "S",
+      "start": 5.85,
+      "end": 5.95
+    },
+    {
+      "p": "IH0",
+      "start": 5.95,
+      "end": 5.99
+    },
+    {
+      "p": "V",
+      "start": 5.99,
+      "end": 6.05
+    },
+    {
+      "p": "AY1",
+      "start": 6.05,
+      "end": 6.21
+    },
+    {
+      "p": "B",
+      "start": 6.21,
+      "end": 6.28
+    },
+    {
+      "p": "R",
+      "start": 6.28,
+      "end": 6.34
+    },
+    {
+      "p": "AW2",
+      "start": 6.34,
+      "end": 6.51
+    },
+    {
+      "p": "Z",
+      "start": 6.51,
+      "end": 6.68
+    },
+    {
+      "p": "SIL",
+      "start": 6.68,
+      "end": 6.923
+    }
+  ]
+}

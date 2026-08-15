@@ -53,6 +53,27 @@ export class AudioBus {
     return this.ctx.sampleRate
   }
 
+  /**
+   * How far behind the mixer the speaker is, seconds.
+   *
+   * `playbackSeconds` reports where the audio graph has got to, which is not
+   * where the visitor's ears have got to: the device buffer holds some
+   * milliseconds of already-mixed audio that has not been heard yet. Anything
+   * synchronising a *picture* to the sound has to subtract this, or it runs
+   * early by exactly that much — a few milliseconds on a wired desktop output,
+   * and well over a frame through Bluetooth or a TV's audio return.
+   *
+   * `outputLatency` is the honest number and Chrome reports it; `baseLatency`
+   * covers only the graph's own buffering and is the fallback where it isn't
+   * available. Zero is the safe floor: it degrades to exactly the behaviour
+   * before this existed.
+   */
+  get outputLatencySeconds(): number {
+    const ctx = this.ctx as AudioContext & { outputLatency?: number }
+    const reported = ctx.outputLatency ?? ctx.baseLatency
+    return typeof reported === 'number' && Number.isFinite(reported) && reported > 0 ? reported : 0
+  }
+
   get isPlaying(): boolean {
     if (this.#mode === 'element') return this.#element ? !this.#element.paused : false
     if (this.#mode === 'buffer') return this.ctx.currentTime < this.#queueEnd

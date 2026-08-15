@@ -17,10 +17,12 @@
       {
         "kind": "gesture",
         "name": "shrug",
-        "atSeconds": 0
+        "atSeconds": 0.26
       }
     ],
-    "cuesStamp": "84:78620"
+    "cuesStamp": "84:78620",
+    "phonesFile": "refusal-fallback.phones.json",
+    "phonesStamp": "84:78620"
   },
   "answers": [
     {
@@ -33,10 +35,12 @@
         {
           "kind": "gesture",
           "name": "wave",
-          "atSeconds": 0
+          "atSeconds": 0.05
         }
       ],
-      "cuesStamp": "123:111639"
+      "cuesStamp": "123:111639",
+      "phonesFile": "what-are-you.phones.json",
+      "phonesStamp": "123:111639"
     },
     {
       "id": "what-is-the-event",
@@ -48,10 +52,12 @@
         {
           "kind": "gesture",
           "name": "point",
-          "atSeconds": 6.462
+          "atSeconds": 6.93
         }
       ],
-      "cuesStamp": "150:161376"
+      "cuesStamp": "150:161376",
+      "phonesFile": "what-is-the-event.phones.json",
+      "phonesStamp": "150:161376"
     },
     {
       "id": "keynote",
@@ -63,10 +69,12 @@
         {
           "kind": "gesture",
           "name": "point",
-          "atSeconds": 0
+          "atSeconds": 0.05
         }
       ],
-      "cuesStamp": "115:99100"
+      "cuesStamp": "115:99100",
+      "phonesFile": "keynote.phones.json",
+      "phonesStamp": "115:99100"
     },
     {
       "id": "what-to-see",
@@ -78,10 +86,12 @@
         {
           "kind": "gesture",
           "name": "think",
-          "atSeconds": 0
+          "atSeconds": 0.03
         }
       ],
-      "cuesStamp": "145:197320"
+      "cuesStamp": "145:197320",
+      "phonesFile": "what-to-see.phones.json",
+      "phonesStamp": "145:197320"
     },
     {
       "id": "who-made-you",
@@ -93,10 +103,12 @@
         {
           "kind": "gesture",
           "name": "nod",
-          "atSeconds": 0
+          "atSeconds": 0.05
         }
       ],
-      "cuesStamp": "91:102026"
+      "cuesStamp": "91:102026",
+      "phonesFile": "who-made-you.phones.json",
+      "phonesStamp": "91:102026"
     },
     {
       "id": "how-do-you-work",
@@ -108,10 +120,12 @@
         {
           "kind": "gesture",
           "name": "shrug",
-          "atSeconds": 3.897
+          "atSeconds": 4.07
         }
       ],
-      "cuesStamp": "114:104951"
+      "cuesStamp": "114:104951",
+      "phonesFile": "how-do-you-work.phones.json",
+      "phonesStamp": "114:104951"
     },
     {
       "id": "wifi",
@@ -123,10 +137,12 @@
         {
           "kind": "gesture",
           "name": "nod",
-          "atSeconds": 3.272
+          "atSeconds": 3.44
         }
       ],
-      "cuesStamp": "120:117072"
+      "cuesStamp": "120:117072",
+      "phonesFile": "wifi.phones.json",
+      "phonesStamp": "120:117072"
     },
     {
       "id": "food",
@@ -138,10 +154,12 @@
         {
           "kind": "gesture",
           "name": "point",
-          "atSeconds": 0
+          "atSeconds": 0.04
         }
       ],
-      "cuesStamp": "109:140478"
+      "cuesStamp": "109:140478",
+      "phonesFile": "food.phones.json",
+      "phonesStamp": "109:140478"
     },
     {
       "id": "schedule",
@@ -153,10 +171,12 @@
         {
           "kind": "gesture",
           "name": "nod",
-          "atSeconds": 4.377
+          "atSeconds": 4.48
         }
       ],
-      "cuesStamp": "117:125431"
+      "cuesStamp": "117:125431",
+      "phonesFile": "schedule.phones.json",
+      "phonesStamp": "117:125431"
     },
     {
       "id": "contact",
@@ -168,10 +188,12 @@
         {
           "kind": "gesture",
           "name": "wave",
-          "atSeconds": 0
+          "atSeconds": 0.05
         }
       ],
-      "cuesStamp": "112:96174"
+      "cuesStamp": "112:96174",
+      "phonesFile": "contact.phones.json",
+      "phonesStamp": "112:96174"
     }
   ]
 }

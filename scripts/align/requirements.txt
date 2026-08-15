@@ -1,0 +1,31 @@
+# Dependencies for scripts/align/align.py — the offline forced aligner behind
+# `npm run bake:visemes`.
+#
+# Only needed to *re-bake* the answer bank. The result is committed as
+# <id>.phones.json beside each MP3, so a clone, a build and the kiosk itself
+# need none of this — see docs/forced-alignment.md.
+#
+#   pip install -r scripts/align/requirements.txt
+#
+# pocketsphinx bundles its own 16kHz US English acoustic model and CMUdict, so
+# this is the whole install: no model download, no conda, no GPU.
+pocketsphinx>=5.0.0
+
+# Reading the MP3s and getting them to 16kHz mono, which is the one format every
+# acoustic model here agrees on.
+soundfile>=0.12
+numpy>=1.24
+scipy>=1.10
+
+# The `mfa` backend is deliberately absent. Montreal Forced Aligner installs
+# through conda rather than pip and pulls in Kaldi, so it is opt-in:
+#
+#   conda create -n mfa -c conda-forge montreal-forced-aligner
+#   conda activate mfa
+#   mfa model download acoustic english_us_arpa
+#   mfa model download dictionary english_us_arpa
+#   npm run bake:visemes -- --backend mfa
+#
+# Worth it when the bank is re-rendered with the final voice: MFA's boundaries
+# are the more accurate of the two by roughly 10ms on average, which is most of
+# a frame at 60fps.

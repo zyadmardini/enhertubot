@@ -1,4 +1,5 @@
 import type { CharAlignment } from '../../audio/alignment.ts'
+import type { PhoneTrack } from '../../audio/visemes.ts'
 import type {
   CannedAnswer,
   CannedAnswerBank,
@@ -56,6 +57,14 @@ export class CachedDriver implements ConversationDriver, CannedAnswerBank {
    * already playing would press the lips shut a syllable late.
    */
   #alignments = new Map<string, CharAlignment>()
+  /**
+   * Measured phone timings, for the answers the bake has aligned.
+   *
+   * Loaded with the manifest for the same reason as the alignments: a track that
+   * lands after the audio has started would leave the first words to the
+   * analyser and then jump, which is more visible than never having had it.
+   */
+  #phones = new Map<string, PhoneTrack>()
   #cursor = 0
   /** Bumped on every interrupt so a decode that lands late can't speak. */
   #turn = 0
@@ -107,6 +116,30 @@ export class CachedDriver implements ConversationDriver, CannedAnswerBank {
         console.warn(`[enubot] Pre-rendered answer "${answer.id}" failed to load.`, error)
       })
       void this.#loadAlignment(answer)
+      void this.#loadPhones(answer)
+    }
+  }
+
+  /**
+   * Fetch one answer's measured phone timings, if the bake produced any.
+   *
+   * Silent on failure past a warning, exactly as the alignment load is: no
+   * sidecar means the mouth falls back to the analyser, which is how every
+   * cached answer behaved before this existed. A missing file must never cost
+   * the answer its voice.
+   */
+  async #loadPhones(answer: CannedAnswer): Promise<void> {
+    if (!answer.phonesFile) return
+    try {
+      const response = await fetch(`${FALLBACK_BASE}/${answer.phonesFile}`)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const track = (await response.json()) as PhoneTrack
+      if (!Array.isArray(track.phones) || track.phones.length === 0) {
+        throw new Error('no phones')
+      }
+      this.#phones.set(answer.id, track)
+    } catch (error) {
+      console.warn(`[enubot] Phones for "${answer.id}" failed to load; analyser only.`, error)
     }
   }
 
@@ -161,6 +194,7 @@ export class CachedDriver implements ConversationDriver, CannedAnswerBank {
     this.#listeners.clear()
     this.#buffers.clear()
     this.#alignments.clear()
+    this.#phones.clear()
   }
 
   on(listener: (event: DriverEvent) => void): () => void {
@@ -217,12 +251,18 @@ export class CachedDriver implements ConversationDriver, CannedAnswerBank {
         )
         this.#after(remaining, () => {
           if (turn !== this.#turn) return
-          // Alignment only when it was captured at render time and written beside
-          // the MP3. Inventing linear timings over real speech would drive the
-          // closure track to fire at the wrong syllables — worse than the
-          // analyser alone, which is exactly why it is optional on the event.
+          // Timings only when they were measured against this recording, never
+          // invented. Linear timings over real speech would drive the mouth at
+          // the wrong syllables — worse than the analyser alone, which is
+          // exactly why both fields are optional on the event.
           const alignment = this.#alignments.get(answer.id)
-          this.#emit(alignment ? { type: 'audio', buffer, alignment } : { type: 'audio', buffer })
+          const phones = this.#phones.get(answer.id)
+          this.#emit({
+            type: 'audio',
+            buffer,
+            ...(alignment ? { alignment } : {}),
+            ...(phones ? { phones } : {}),
+          })
         })
       })
       .catch((error: unknown) => {

@@ -18,6 +18,7 @@
     "validate:glb": "node scripts/validate-glb.mjs",
     "check:cache": "node scripts/check-cache.mjs",
     "bake:gestures": "node scripts/bake-gestures.mjs",
+    "bake:visemes": "node scripts/align-answers.mjs",
     "eval:persona": "node scripts/eval-persona.mjs"
   },
   "engines": {

@@ -1,0 +1,29 @@
+# Pronunciations the aligner's dictionary does not have.
+#
+# Read by `npm run bake:visemes`. Every word in an answer has to be looked up
+# before the audio can be aligned against it, and a general English dictionary
+# knows none of the client's own vocabulary — which is precisely the vocabulary
+# a visitor hears most often. The bake fails, by name, on any word missing from
+# both, so this file is where new brand words go.
+#
+# Format is one line per pronunciation:
+#
+#     word  P H O N E S
+#
+# Phones are ARPAbet without stress digits: AA AE AH AO AW AY B CH D DH EH ER EY
+# F G HH IH IY JH K L M N NG OW OY P R S SH T TH UH UW V W Y Z ZH.
+#
+# A word may appear more than once. Those are alternates, and the aligner scores
+# them against the recording and keeps whichever one the voice actually said —
+# which beats arguing about it, and quietly re-settles itself when the bank is
+# re-rendered with a different voice.
+
+# The name. Both readings are plausible in print ("EE-noo-bot", "EN-yoo-bot") and
+# only the recording can say which is in it. Delete the loser once the real voice
+# is chosen and the bake has told you which one it picked.
+enubot  IY N UW B AA T
+enubot  EH N Y UW B AA T
+
+# The company, and so the event: "the Enu Summit".
+enu  IY N UW
+enu  EH N Y UW

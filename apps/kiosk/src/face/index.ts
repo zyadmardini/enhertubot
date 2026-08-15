@@ -10,6 +10,7 @@ export function createFaceRenderer(id: FaceId): FaceRenderer {
         size: config.face_.canvasSize,
         blinkIntervalRange: config.face_.blinkIntervalRange,
         doubleBlinkChance: config.face_.doubleBlinkChance,
+        shapeBlendSeconds: config.face_.shapeBlendSeconds,
       })
     case 'sprite':
       // The illustrated-face add-on lands here: same interface, different draw

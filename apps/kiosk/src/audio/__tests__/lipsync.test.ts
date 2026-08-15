@@ -15,6 +15,7 @@ const OPTIONS: LipSyncOptions = {
   // what was decided, and a hold would report the previous frame's answer instead.
   // Exercised deliberately in its own block below.
   minVisemeSeconds: 0,
+  minMeasuredSeconds: 0.033,
   bands: {
     f1: [200, 1000],
     f2: [1100, 2800],
@@ -42,6 +43,8 @@ class FakeBus {
   sampleRate = 48000
   isPlaying = true
   playbackSeconds = 0
+  /** Wired output on a desktop. Set per test where the lead maths is the subject. */
+  outputLatencySeconds = 0
 
   /** A square wave of this amplitude, so RMS is exactly the value set here. */
   amplitude = 0.25
@@ -377,6 +380,77 @@ describe('LipSync', () => {
       const frame = lip.update(1 / 60)
       expect(frame.viseme).toBe('SS')
       expect(frame.mouthOpen).toBeLessThanOrEqual(0.22)
+    })
+  })
+
+  describe('measured phones', () => {
+    /** "map", as an aligner would report it: a vowel between two lip closures. */
+    const MAP = {
+      phones: [
+        { p: 'M', start: 0, end: 0.1 },
+        { p: 'AE', start: 0.1, end: 0.3 },
+        { p: 'P', start: 0.3, end: 0.4 },
+      ],
+    }
+
+    it('outranks both the spelling and the analyser', () => {
+      const { bus, lip } = setup()
+      // The spelling says the same word, but shifted — so whichever source wins
+      // is identifiable from the shape alone rather than from a coincidence.
+      lip.alignment.append(align('sap', 100), 0)
+      lip.visemes.append(MAP, 0)
+      settle(lip)
+
+      bus.playbackSeconds = 0.15 - OPTIONS.articulationLeadSeconds
+      expect(lip.update(1 / 60).viseme).toBe('aa')
+      bus.playbackSeconds = 0.35 - OPTIONS.articulationLeadSeconds
+      expect(lip.update(1 / 60).viseme).toBe('PP')
+    })
+
+    it('is not rate-limited the way the guessing sources are', () => {
+      // A 100ms phone under a 300ms floor. The floor exists to stop the analyser
+      // flickering; applying it here would drop real articulations on the ground,
+      // which is the whole complaint the measured track answers.
+      const { bus, lip } = setup('full', { minVisemeSeconds: 0.3 })
+      lip.visemes.append(MAP, 0)
+      settle(lip)
+
+      const seen = new Set<string>()
+      for (let t = 0; t < 0.4; t += 1 / 60) {
+        bus.playbackSeconds = t - OPTIONS.articulationLeadSeconds
+        seen.add(lip.update(1 / 60).viseme)
+      }
+      expect(seen).toContain('PP')
+      expect(seen).toContain('aa')
+    })
+
+    it('hands back to the analyser past the end of the track', () => {
+      const { bus, lip } = setup()
+      lip.visemes.append(MAP, 0)
+      // A vowel spectrum, so the fallback is identifiable.
+      bus.spectrum = { low: 200, mid: 100, shush: 20, high: 20 }
+      settle(lip)
+
+      bus.playbackSeconds = 2
+      expect(lip.update(1 / 60).viseme).toBe('aa')
+    })
+
+    it('spends part of the lead on output latency', () => {
+      // What the visitor hears now left the mixer `outputLatencySeconds` ago, so
+      // leading by the full configured amount on top of that runs the mouth
+      // early. At a latency equal to the lead they cancel exactly.
+      const early = setup()
+      early.lip.visemes.append({ phones: [{ p: 'M', start: 0.05, end: 0.2 }] }, 0)
+      settle(early.lip)
+      early.bus.playbackSeconds = 0.02
+      expect(early.lip.update(1 / 60).viseme).toBe('PP')
+
+      const late = setup()
+      late.bus.outputLatencySeconds = OPTIONS.articulationLeadSeconds
+      late.lip.visemes.append({ phones: [{ p: 'M', start: 0.05, end: 0.2 }] }, 0)
+      settle(late.lip)
+      late.bus.playbackSeconds = 0.02
+      expect(late.lip.update(1 / 60).viseme).not.toBe('PP')
     })
   })
 })

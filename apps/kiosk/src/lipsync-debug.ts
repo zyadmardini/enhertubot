@@ -3,6 +3,7 @@ import { AudioBus } from './audio/AudioBus.ts'
 import { LipSync } from './audio/lipsync.ts'
 import type { ArticulationDetail, CharAlignment, Articulation } from './audio/alignment.ts'
 import { estimateAlignment } from './audio/estimate.ts'
+import type { PhoneTrack } from './audio/visemes.ts'
 import { parseGestureTags } from './core/gestures.ts'
 import { ProceduralFace } from './face/adapters/procedural.ts'
 import type { Viseme } from './audio/lipsync.ts'
@@ -12,24 +13,30 @@ import type { CannedAnswer } from './voice/types.ts'
 /**
  * Lip-sync inspector. Dev-only page at /lipsync.html.
  *
- * The hybrid mouth has two sources that can each fail silently and in opposite
- * directions: the analyser can flap through a consonant, and the articulation
- * track can put the tongue on the wrong syllable if the chunk offset is out. Both
- * look like "the mouth is a bit off" from across a room, so this shows the two
- * layers separately against the audio that produced them.
+ * The mouth has three sources and each fails silently in its own direction: the
+ * analyser flaps through a consonant it cannot hear, the spelling puts the tongue
+ * in a place English orthography only implies, and a measured phone track lands
+ * on the wrong syllable entirely if its offset is out. All three look like "the
+ * mouth is a bit off" from across a room, so this shows them separately against
+ * the audio that produced them.
  *
- * Everything here is the shipping code — the real AudioBus, the real LipSync and
- * its AlignmentTrack, the real ProceduralFace. The articulation bars are sampled
- * through `articulationAt`, the same query the runtime makes every frame, so what
- * is drawn is what the mouth actually sees rather than a parallel reimplementation.
+ * Everything here is the shipping code — the real AudioBus, the real LipSync with
+ * its AlignmentTrack and VisemeTrack, the real ProceduralFace. The articulation
+ * bars are sampled through `articulationAt`, the same query the runtime makes
+ * every frame, so what is drawn is what the mouth actually sees rather than a
+ * parallel reimplementation.
  *
  * The audio sources are the answer bank and local synthesis. The bank is the
  * point: those eleven MP3s are what a visitor actually hears on the shipping
- * `cached` driver, and they carry no alignment at all — so what this page shows
- * for them is the analyser working alone, which is the real behaviour rather than
- * a demonstration of the best case.
+ * `cached` driver. The timing dropdown switches between what they ship with —
+ * phone boundaries from `npm run bake:visemes` — and the three lesser sources
+ * they used to have, on the same clip, which is the only honest way to judge
+ * whether the aligner was worth it.
  *
- * Not part of the production build: Vite only bundles index.html.
+ * Not in the kiosk build, but in the cloud preview's: a build takes
+ * `index.html` as its only entry unless `VITE_ENUBOT_DEBUG_PAGES=1` adds this
+ * page and the face sheet, which `vercel.json` sets. The dev server serves it
+ * either way. See vite.config.ts.
  */
 
 const SAMPLE_TEXT =
@@ -75,10 +82,14 @@ const VISEME_COLOUR: Record<Viseme, string> = {
   oh: '#8089c4',
 }
 
+/**
+ * One span of the top row: what the timing source asked for, before the mouth
+ * had its say. Compared against the band lower down, which is what was shown.
+ */
 interface Block {
   start: number
   end: number
-  articulation: Articulation
+  viseme: Viseme
 }
 
 /** What the face was actually showing at one instant, recorded during playback. */
@@ -134,7 +145,7 @@ document.head.insertAdjacentHTML(
 
 root.innerHTML = `
   <h1>Enubot — lip-sync inspector</h1>
-  <p class="sub">Analyser drives the vowels, character alignment drives the closures. This shows both against the audio.</p>
+  <p class="sub">Measured phones drive the mouth where the bake produced them; the analyser and the spelling stand in where it did not. This shows all three against the audio.</p>
   <div class="row">
     <div class="panel"><div class="head" id="head"></div></div>
     <div class="panel controls">
@@ -150,10 +161,11 @@ root.innerHTML = `
         <button id="speak">Speak</button>
         <button id="stop" class="ghost">Stop</button>
       </div>
-      <label class="check">alignment for cached clips
+      <label class="check">timing source for cached clips
         <select id="estimate">
-          <option value="none">none — analyser alone, as it ships</option>
-          <option value="energy" selected>estimate, energy-anchored</option>
+          <option value="phones" selected>measured — forced alignment, as it ships</option>
+          <option value="none">none — analyser alone</option>
+          <option value="energy">estimate, energy-anchored</option>
           <option value="even">estimate, even spacing</option>
         </select>
       </label>
@@ -176,7 +188,7 @@ root.innerHTML = `
         .join('')}
       <span><span class="swatch" style="background:${INK};opacity:.25"></span>mouth open, from the analyser</span>
     </div>
-    <div class="legend">Rows, top to bottom: articulations from the alignment · mouth aperture · the viseme actually shown · characters. Play once, then drag to scrub what was recorded.</div>
+    <div class="legend">Rows, top to bottom: what the timing source asked for · mouth aperture · the viseme actually shown · phones or characters. The top two rows differing is the mouth's own smoothing; play once, then drag to scrub what was recorded.</div>
   </div>
 `
 
@@ -186,6 +198,7 @@ const face = new ProceduralFace({
   size: config.face_.canvasSize,
   blinkIntervalRange: config.face_.blinkIntervalRange,
   doubleBlinkChance: config.face_.doubleBlinkChance,
+  shapeBlendSeconds: config.face_.shapeBlendSeconds,
 })
 document.getElementById('head')?.appendChild(face.canvas)
 
@@ -207,6 +220,7 @@ const el = {
 }
 
 let alignment: CharAlignment | null = null
+let phones: PhoneTrack | null = null
 let duration = 0
 let blocks: Block[] = []
 let trace: Sample[] = []
@@ -230,19 +244,25 @@ async function speak(): Promise<void> {
     const result = answer ? await fromCache(answer, text) : await fromLocalSynthesis(text)
 
     alignment = result.alignment
+    phones = result.phones
     duration = result.buffer.duration
 
     // Exactly the runtime's sequence: the bus reports where the chunk lands and
-    // the alignment is offset onto that, rather than assuming it starts at zero.
+    // the timings are offset onto that, rather than assuming it starts at zero.
     const offsetSeconds = bus.enqueue(result.buffer)
     if (result.alignment) lipSync.alignment.append(result.alignment, offsetSeconds)
+    if (result.phones) lipSync.visemes.append(result.phones, offsetSeconds)
 
     blocks = scanArticulations(duration)
     trace = []
     el.src.textContent = result.label
-    el.spans.textContent = String(lipSync.alignment.spanCount)
-    const chars = result.alignment ? `${result.alignment.chars.length} chars · ` : 'analyser only · '
-    setStatus(`${duration.toFixed(2)}s · ${chars}${blocks.length} articulations`)
+    el.spans.textContent = String(lipSync.visemes.spanCount || lipSync.alignment.spanCount)
+    const detail = result.phones
+      ? `${result.phones.phones.length} phones · ${lipSync.visemes.spanCount} shapes · `
+      : result.alignment
+        ? `${result.alignment.chars.length} chars · `
+        : 'analyser only · '
+    setStatus(`${duration.toFixed(2)}s · ${detail}${blocks.length} articulations`)
   } catch (error) {
     setStatus(error instanceof Error ? error.message : String(error), true)
   } finally {
@@ -253,18 +273,22 @@ async function speak(): Promise<void> {
 function stop(): void {
   bus.stop()
   lipSync.alignment.clear()
+  lipSync.visemes.clear()
   blocks = []
   trace = []
   duration = 0
   alignment = null
+  phones = null
   scrubT = null
   el.spans.textContent = '0'
 }
 
 interface SpeechSource {
   buffer: AudioBuffer
-  /** null means no timings at all — the analyser is on its own, as it is in production. */
+  /** null means no character timings — the analyser or the phones carry it instead. */
   alignment: CharAlignment | null
+  /** Measured phone boundaries, when the answer has been through the aligner. */
+  phones: PhoneTrack | null
   label: string
 }
 
@@ -275,15 +299,18 @@ interface SpeechSource {
  * be right against — synthesised babble has a tidy envelope and real speech does
  * not.
  *
- * No alignment by default, because these MP3s genuinely ship without it: the
- * manifest carries `alignmentFile` for answers that have been aligned and none of
- * them have. That is not a gap in this page, it is the cached path, and seeing
- * the analyser cope alone is the point of looking.
+ * Four timing sources on the same clip, which is the whole reason for the
+ * dropdown: they are not variations on a theme, they are four different degrees
+ * of knowing when a sound happened, and the difference between them is exactly
+ * what this page exists to make visible.
  *
- * The estimate checkbox overlays evenly spaced timings derived from the answer
- * text. Worth having to see the consonant shapes at all, and worth distrusting:
- * even spacing drifts against real speech within a sentence, so a gesture that
- * looks a syllable late here may be the estimate rather than the mouth.
+ *   phones  What ships. Boundaries measured by a forced aligner offline, so the
+ *           consonants are where they actually are.
+ *   none    The analyser alone — vowels right, every consonant a guess. This is
+ *           what the bank did before the aligner existed.
+ *   energy  Characters warped onto the clip's energy curve. Plausible, not true.
+ *   even    Characters spread flat. Right shapes, wrong places, drifting further
+ *           with every word.
  */
 async function fromCache(answer: CannedAnswer, text: string): Promise<SpeechSource> {
   const response = await fetch(`${FALLBACK_BASE}/${answer.file}`)
@@ -291,16 +318,36 @@ async function fromCache(answer: CannedAnswer, text: string): Promise<SpeechSour
 
   const buffer = await bus.ctx.decodeAudioData(await response.arrayBuffer())
   const mode = el.estimate.value
-  if (mode === 'none') return { buffer, alignment: null, label: answer.id }
+
+  if (mode === 'phones') {
+    const track = await loadPhones(answer)
+    if (!track) {
+      // Not an error: an answer that has not been through `npm run bake:visemes`
+      // genuinely has no phones, and the honest thing to show is the fallback it
+      // would actually get.
+      setStatus(`${answer.id} has no phones file — showing the analyser instead.`)
+      return { buffer, alignment: null, phones: null, label: `${answer.id} (analyser)` }
+    }
+    return { buffer, alignment: null, phones: track, label: `${answer.id} (${track.aligner})` }
+  }
+
+  if (mode === 'none') return { buffer, alignment: null, phones: null, label: answer.id }
 
   // Both estimates are offered so the difference is visible rather than asserted.
-  // Even spacing is what this page used to do: it produces the right shapes in
-  // roughly the wrong places, drifting further with every word.
   const alignment =
     mode === 'energy'
       ? estimateAlignment(buffer, text)
       : linearAlignment(text, buffer.duration)
-  return { buffer, alignment, label: `${answer.id} (${mode})` }
+  return { buffer, alignment, phones: null, label: `${answer.id} (${mode})` }
+}
+
+/** One answer's measured phone track, or null if the bake never produced one. */
+async function loadPhones(answer: CannedAnswer): Promise<PhoneTrack | null> {
+  if (!answer.phonesFile) return null
+  const response = await fetch(`${FALLBACK_BASE}/${answer.phonesFile}`)
+  if (!response.ok) return null
+  const track = (await response.json()) as PhoneTrack
+  return Array.isArray(track.phones) && track.phones.length > 0 ? track : null
 }
 
 /**
@@ -312,7 +359,12 @@ async function fromCache(answer: CannedAnswer, text: string): Promise<SpeechSour
  */
 async function fromLocalSynthesis(text: string): Promise<SpeechSource> {
   const buffer = synthesizeBabble(bus.ctx, text)
-  return { buffer, alignment: linearAlignment(text, buffer.duration), label: 'Local (even)' }
+  return {
+    buffer,
+    alignment: linearAlignment(text, buffer.duration),
+    phones: null,
+    label: 'Local (even)',
+  }
 }
 
 /**
@@ -352,20 +404,25 @@ function spokenText(answer: CannedAnswer): string {
 }
 
 /**
- * Articulation bars, sampled through the track's own query rather than read from
- * its internals — if `articulationAt` is wrong, these bars are wrong in the same
- * way, and a debug view that quietly disagrees with the runtime is worse than none.
+ * The top row, sampled through the tracks' own queries rather than read from
+ * their internals — if `visemeAt` or `articulationAt` is wrong, these bars are
+ * wrong in the same way, and a debug view that quietly disagrees with the
+ * runtime is worse than none.
+ *
+ * Whichever source is driving is the one scanned, because the row answers "what
+ * was this asked to show", and only one source is ever asked.
  */
 function scanArticulations(totalSeconds: number): Block[] {
+  const measured = lipSync.visemes.spanCount > 0
   const found: Block[] = []
-  let previous: Articulation | null = null
+  let previous: Viseme | null = null
 
   for (let t = 0; t <= totalSeconds; t += SCAN_STEP) {
-    const articulation = lipSync.alignment.articulationAt(t)
+    const viseme = measured ? lipSync.visemes.visemeAt(t) : lipSync.alignment.articulationAt(t)
     const last = found[found.length - 1]
-    if (articulation && articulation === previous && last) last.end = t + SCAN_STEP
-    else if (articulation) found.push({ start: t, end: t + SCAN_STEP, articulation })
-    previous = articulation
+    if (viseme && viseme === previous && last) last.end = t + SCAN_STEP
+    else if (viseme) found.push({ start: t, end: t + SCAN_STEP, viseme })
+    previous = viseme
   }
   return found
 }
@@ -430,11 +487,11 @@ function drawTimeline(playhead: number): void {
   for (const block of blocks) {
     const left = x(block.start)
     const width = Math.max(1.5, x(block.end) - left)
-    ctx.fillStyle = ARTICULATION_COLOUR[block.articulation]
+    ctx.fillStyle = VISEME_COLOUR[block.viseme]
     ctx.fillRect(left, barTop, width, barHeight)
     if (width >= 16) {
-      ctx.fillStyle = '#ffffff'
-      ctx.fillText(block.articulation, left + width / 2, barTop + barHeight / 2 + 4)
+      ctx.fillStyle = block.viseme === 'sil' ? INK : '#ffffff'
+      ctx.fillText(block.viseme, left + width / 2, barTop + barHeight / 2 + 4)
     }
   }
   ctx.textAlign = 'left'
@@ -486,6 +543,26 @@ function drawTimeline(playhead: number): void {
   ctx.globalAlpha = 0.12
   ctx.strokeRect(padL, bandTop, span, bandHeight)
   ctx.globalAlpha = 1
+
+  // Phones, where there are measured ones: the row that turns "that shape is
+  // wrong" into "that shape is wrong on the /k/ of `walk`", which is the only
+  // form of that observation anybody can act on.
+  if (phones) {
+    ctx.font = '600 10px ui-monospace, Consolas, monospace'
+    ctx.textAlign = 'center'
+    for (const phone of phones.phones) {
+      if (phone.p === 'SIL') continue
+      const left = x(phone.start)
+      const right = x(phone.end)
+      ctx.fillStyle = INK
+      ctx.globalAlpha = 0.08
+      ctx.fillRect(left, charY - 11, Math.max(1, right - left - 1), 14)
+      ctx.globalAlpha = 0.75
+      if (right - left >= 13) ctx.fillText(phone.p.replace(/\d/g, ''), (left + right) / 2, charY)
+    }
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'left'
+  }
 
   // Characters, thinned to whatever fits so they stay readable on a long answer.
   if (alignment) {
